@@ -176,7 +176,7 @@ void ssl_relay::ssl_data_send()
 	});
 }
 
-void ssl_relay::do_ssl_data(std::shared_ptr<relay_data>& buf)
+void ssl_udp::do_ssl_data(std::shared_ptr<relay_data>& buf)
 {
 	auto session = buf->session();
 	if (buf->cmd() == relay_data::KEEP_RELAY) {
@@ -194,23 +194,14 @@ void ssl_relay::do_ssl_data(std::shared_ptr<relay_data>& buf)
 			relay->get_strand().post(raw_data_send, asio::get_associated_allocator(raw_data_send));
 		}
 	} else if (buf->cmd() == relay_data::START_CONNECT) { // remote get start connect
-		auto relay = std::make_shared<raw_relay> (_io_context, shared_from_this(), session);
+		auto relay = std::make_shared<raw_udp> (_io_context, shared_from_this(), session);
 		_relays[session] = std::make_shared<_relay_t>(relay);
-		auto start_task = std::bind(&raw_relay::start_remote_connect, relay, buf);
+		auto start_task = std::bind(&raw_relay::start_remote_udp, relay, buf);
 		relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
-	} else if (buf->cmd() == relay_data::START_RELAY) {
-//		BOOST_LOG_TRIVIAL(info) << session <<" START RELAY: ";
-		auto val = _relays.find(session);
-		if (val == _relays.end() ) { // local stopped before remote connect, tell remote to stop
-			stop_ssl_relay(session, relay_data::from_raw);
-		} else {
-			// local get start from remote, tell raw relay begin
-			auto relay = val->second->relay;
-			auto start_task = std::bind(&raw_relay::start_data_relay, relay);
-			relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
-		}
 	} else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
 		_relays.erase(session);
+	} else {
+
 	}
 }
 
@@ -301,3 +292,4 @@ void ssl_relay::timer_handle()
 	}
 //	BOOST_LOG_TRIVIAL(info) << " ssl relay timer handle : "<< _timeout_rd<< " "<<_timeout_wr<< " "<< _timeout_kp;
 }
+

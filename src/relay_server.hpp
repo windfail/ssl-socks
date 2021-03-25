@@ -1,6 +1,8 @@
 #ifndef _GROXY_RELAY_SERVER_HPP
 #define _GROXY_RELAY_SERVER_HPP
-#include "relay.hpp"
+
+#include "raw_tcp.hpp"
+#include "ssl_tcp.hpp"
 
 class relay_server
 {
@@ -8,7 +10,7 @@ public:
 	relay_server(const relay_config &config):
 		_io_context(),// _ctx(ssl::context::tlsv12_client),
 		_config(config), _strand(_io_context.get_executor()),
-		_acceptor(_io_context, tcp::endpoint(tcp::v4(), config.local_port)),
+		_acceptor(_io_context, tcp::endpoint(tcp::v6(), config.local_port)),
 		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(_io_context) {
 	}
 

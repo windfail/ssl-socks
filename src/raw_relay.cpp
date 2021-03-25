@@ -1,4 +1,5 @@
-#include "relay.hpp"
+#include "raw_tcp.hpp"
+#include "ssl_tcp.hpp"
 #include <sstream>
 #include <iomanip>
 #include <boost/format.hpp>
@@ -24,7 +25,7 @@ static std::pair<std::string, std::string> parse_address(uint8_t *data, std::siz
 	uint8_t * port;
 	auto cmd = data[0];
 
-	if (cmd == 1) {
+	if (cmd == ADDR_TYPE_V4) {
 		auto addr_4 = (asio::ip::address_v4::bytes_type *)&data[1];
 		if (len < sizeof(*addr_4) + 3) {
 			auto emsg = boost::format(" sock5 addr4 len error: %1%")%len;
@@ -32,7 +33,7 @@ static std::pair<std::string, std::string> parse_address(uint8_t *data, std::siz
 		}
 		host = asio::ip::make_address_v4(*addr_4).to_string();
 		port = (uint8_t*)&addr_4[1];
-	} else if (cmd == 4) {
+	} else if (cmd == ADDR_TYPE_V6) {
 		auto addr_6 = (asio::ip::address_v6::bytes_type *)&data[1];
 		if (len < sizeof(*addr_6) + 3) {
 			auto emsg = boost::format(" sock5 addr6 len error: %1%")%len;
@@ -40,7 +41,7 @@ static std::pair<std::string, std::string> parse_address(uint8_t *data, std::siz
 		}
 		host = asio::ip::make_address_v6(*addr_6).to_string();
 		port = (uint8_t*)&addr_6[1];
-	} else if (cmd == 3) {
+	} else if (cmd == ADDR_TYPE_HOST) {
 		int host_len = data[1];
 		if ( len < host_len +4) {
 			auto emsg = boost::format(" sock5 host name len error: %1%, hostlen%2%")%len%host_len;
