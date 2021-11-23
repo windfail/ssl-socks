@@ -81,7 +81,7 @@ int main(int argc, char*argv[])
 {
 	relay_config config;
 
-	int cmd;
+
 	std::string conf_file = "/etc/groxy_ssl/groxy_ssl.conf";
 
 	while (1) {
@@ -90,7 +90,7 @@ int main(int argc, char*argv[])
 			{0,         0,                 0,  0 }
 		};
 
-		cmd = getopt_long(argc, argv, "c:",
+		int cmd = getopt_long(argc, argv, "c:",
 				long_options, &option_index);
 		if (cmd == -1)
 			break;

@@ -17,7 +17,7 @@ public:
 	int timeout {TIMEOUT};
 	_relay_t() {
 	};
-	_relay_t(const std::shared_ptr<raw_relay> &relay) :relay(relay) {};
+	explict _relay_t(const std::shared_ptr<raw_relay> &relay) :relay(relay) {};
 	~_relay_t();
 };
 
