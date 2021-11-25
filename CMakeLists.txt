@@ -15,6 +15,7 @@ set(SOURCES
     src/ssl_relay.cpp
     src/raw_relay.cpp
     src/relay_server.cpp
+    src/raw_tcp.cpp
     #    src/server.cpp
     src/gfwlist.cpp
     src/main.cpp

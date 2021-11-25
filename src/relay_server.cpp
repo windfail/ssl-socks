@@ -1,14 +1,15 @@
 #include "relay_server.hpp"
 #include <boost/asio/spawn.hpp>
 
-void relay_server::local_server_start()
+// local tcp server
+void relay_server::local_tcp_server_start()
 {
 	asio::spawn(_strand, [this](asio::yield_context yield) {
 		auto ssl_ptr = std::make_shared<ssl_relay> (&_io_context, _config);
 		_ssl_relays.emplace_back(ssl_ptr);
 		while (true) {
 			try {
-				auto new_relay = std::make_shared<raw_relay> (&_io_context, ssl_ptr);
+				auto new_relay = std::make_shared<raw_tcp> (&_io_context, ssl_ptr);
 				_acceptor.async_accept(new_relay->get_sock(), yield);
 				auto task = std::bind(&ssl_relay::local_handle_accept, ssl_ptr, new_relay);
 				ssl_ptr->get_strand().post(task, asio::get_associated_allocator(task));
@@ -44,7 +45,7 @@ void relay_server::start_server()
 	if (_config.type == REMOTE_SERVER) {
 		remote_server_start();
 	} else {
-		local_server_start();
+		local_tcp_server_start();
 	}
 	start_timer();
 

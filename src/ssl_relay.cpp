@@ -1,10 +1,11 @@
-
 #include <iostream>
 #include <boost/asio/spawn.hpp>
 //#include <boost/asio/yield.hpp>
 #include <sstream>
 #include "relay.hpp"
 #include <boost/format.hpp>
+#include "raw_tcp.hpp"
+#include "ssl_relay.hpp"
 
 using boost::format;
 
@@ -23,9 +24,9 @@ public:
 
 ssl_relay::_relay_t::~_relay_t()
 {
-	if (relay->session() == 0) {
-		return;
-	}
+	// if (relay->session() == 0) {
+	// 	return;
+	// }
 	auto stop_raw = std::bind(&raw_relay::stop_raw_relay, relay, relay_data::from_ssl);
 	relay->get_strand().post(stop_raw, asio::get_associated_allocator(stop_raw));
 
@@ -118,8 +119,9 @@ void ssl_relay::send_data_on_ssl(std::shared_ptr<relay_data> buf)
 }
 
 // local ssl relay server functions
+// for local tcp relay, add to _relays
 // call add_new_relay, vector access, must run in ssl_relay strand
-void ssl_relay::local_handle_accept(std::shared_ptr<raw_relay> relay)
+void ssl_relay::local_handle_accept(std::shared_ptr<raw_tcp> relay)
 {
 	if (_ssl_status == SSL_CLOSED ) {
 		BOOST_LOG_TRIVIAL(error) <<" SSL closed  ";
@@ -129,12 +131,12 @@ void ssl_relay::local_handle_accept(std::shared_ptr<raw_relay> relay)
 	add_new_relay(relay);
 	auto task =
 		_config.type == LOCAL_SERVER ?
-		std::bind(&raw_relay::local_start, relay) :
-		std::bind(&raw_relay::transparent_start, relay);
+		std::bind(&raw_tcp::local_start, relay) :
+		std::bind(&raw_tcp::transparent_start, relay);
 	relay->get_strand().post(task, asio::get_associated_allocator(task));
 }
 
-uint32_t ssl_relay::add_new_relay(const std::shared_ptr<raw_relay> &relay)
+uint32_t ssl_relay::add_new_relay(const std::shared_ptr<raw_tcp> &relay)
 {
 	uint32_t session = 0;
 	do {
@@ -185,29 +187,33 @@ void ssl_relay::do_ssl_data(std::shared_ptr<relay_data>& buf)
 	}
 	if ( buf->cmd() == relay_data::DATA_RELAY) {
 		auto val = _relays.find(session);
-		if (val == _relays.end() ) { // session stopped, tell remote to STOP
-			stop_ssl_relay(session, relay_data::from_raw);
-		} else {
-			auto relay = val->second->relay;
-			auto raw_data_send = std::bind(&raw_relay::send_data_on_raw, relay, buf);
-			relay->get_strand().post(raw_data_send, asio::get_associated_allocator(raw_data_send));
+        auto relay = default_relay;
+		if (val != _relays.end() ) { // session stopped, tell remote to STOP
+            relay = val->second->relay;
 		}
-	} else if (buf->cmd() == relay_data::START_CONNECT) { // remote get start connect
-		auto relay = std::make_shared<raw_relay> (_io_context, shared_from_this(), session);
+        if (relay == nullptr) {
+			stop_ssl_relay(session, relay_data::from_raw);
+        } else {
+            auto raw_data_send = std::bind(&raw_relay::send_data_on_raw, relay, buf);
+            relay->get_strand().post(raw_data_send, asio::get_associated_allocator(raw_data_send));
+        }
+	} else if (buf->cmd() == relay_data::START_UDP) { // remote get start udp
+	} else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
+		auto relay = std::make_shared<raw_tcp> (_io_context, shared_from_this(), session);
 		_relays[session] = std::make_shared<_relay_t>(relay);
-		auto start_task = std::bind(&raw_relay::start_remote_connect, relay, buf);
+		auto start_task = std::bind(&raw_tcp::start_remote_connect, relay, buf);
 		relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
-	} else if (buf->cmd() == relay_data::START_RELAY) {
-//		BOOST_LOG_TRIVIAL(info) << session <<" START RELAY: ";
-		auto val = _relays.find(session);
-		if (val == _relays.end() ) { // local stopped before remote connect, tell remote to stop
-			stop_ssl_relay(session, relay_data::from_raw);
-		} else {
-			// local get start from remote, tell raw relay begin
-			auto relay = val->second->relay;
-			auto start_task = std::bind(&raw_relay::start_data_relay, relay);
-			relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
-		}
+// 	} else if (buf->cmd() == relay_data::START_RELAY) {
+// //		BOOST_LOG_TRIVIAL(info) << session <<" START RELAY: ";
+// 		auto val = _relays.find(session);
+// 		if (val == _relays.end() ) { // local stopped before remote connect, tell remote to stop
+// 			stop_ssl_relay(session, relay_data::from_raw);
+// 		} else {
+// 			// local get start from remote, tell raw relay begin
+// 			auto relay = val->second->relay;
+// 			auto start_task = std::bind(&raw_relay::start_data_relay, relay);
+// 			relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
+// 		}
 	} else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
 		_relays.erase(session);
 	}
@@ -245,6 +251,8 @@ void ssl_relay::ssl_data_read()
 	});
 
 }
+
+// start ssl connect 
 void ssl_relay::ssl_connect_start()
 {
 	auto self(shared_from_this());

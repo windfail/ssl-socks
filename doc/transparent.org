@@ -1,6 +1,32 @@
 ## TCP
 
   one connection(dst/src) one session
+
+### class tcp_server
+
+  1. create new raw_tcp
+  2. accept on local connect
+  3. add raw_tcp to ssl_relay and start new session
+  4. goto 1
+
+  ssl_relay start new tcp session
+  1. new session, associate with raw_tcp
+  2. send start tcp to server
+  3. raw_tcp start relay
+
+  ssl_relay remote start
+  1. new raw_tcp associate with session
+  2. raw_tcp remote start(connect dst, start relay)
+
+### class raw_tcp
+
+  local:
+  read data -> send to ssl_relay
+  write data
+  remote:
+  connect to real remote
+  read/write as local
+
 #+BEGIN_SRC dot :file tcp.svg :cmdline -Kdot -Tsvg
 digraph tcp {
   rankdir=LR
@@ -52,6 +78,53 @@ digraph tcp {
 #+END_SRC
 
 ## UDP
+
+  class udp_server
+  class raw_udp
+  local
+  1. recvmsg
+  2. find session with dst/src, if found, goto 4
+  3. new session, send start udp by ssl_relay
+  4. send session data
+  remote
+  1. connect to remote
+  2. start remote relay(recv -> send by ssl_relay)
+
+send:
+  found dst in _relays, bind src addr
+  send data
+
+  ssl_relay
+    found relay in _relays, if not found, use default(raw_udp)
+    local: read data, let raw_udp send data back
+    remote: read data, found associate raw_udp send data
+
+#+BEGIN_SRC dot :file udpstartrelay.svg :cmdline -Kdot -Tsvg
+digraph udp {
+#  rankdir=LR
+  node[shape=box]
+  subgraph cluster_send_data{
+    label="send data"
+    check_data_sess[label="session == data_sess" shape=diamond]
+    check_data_sess-> send_raw[label="Y"]
+    check_data_sess -> find_dst[label="N"]
+    find_dst-> bind_dst -> send_raw-> next_data -> check_data_sess
+  }
+  subgraph cluster_start_relay {
+    label="start relay"
+    check_sess[label="session == 0" shape=diamond]
+    find_sess[shape=diamond]
+    send[label="send data"]
+    recvmsg -> check_sess
+    check_sess-> send [label="N"]
+    check_sess-> find_sess [label="Y"]
+    find_sess -> send [label="Y"]
+    find_sess-> new_sess[label="N"]
+    new_sess -> send_start -> send
+    send -> recvmsg[constraint=false]
+  }
+}
+#+END_SRC
 #+BEGIN_SRC dot :file udp.svg :cmdline -Kdot -Tsvg
 digraph udp {
   rankdir=LR
@@ -94,3 +167,5 @@ digraph udp {
   s_raw_udp_2d -> remote2d
 }
 #+END_SRC
+
+ssl_relay

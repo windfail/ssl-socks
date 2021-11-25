@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2021-11-25 四 11:57 -->
+<!-- 2021-11-25 四 16:24 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>&lrm;</title>
@@ -250,6 +250,48 @@ for the JavaScript code in this tag.
 one connection(dst/src) one session
 </p>
 
+<p>
+### class tcp<sub>server</sub>
+</p>
+
+<ol class="org-ol">
+<li>create new raw<sub>tcp</sub></li>
+<li>accept on local connect</li>
+<li>add raw<sub>tcp</sub> to ssl<sub>relay</sub> and start new session</li>
+<li>goto 1</li>
+</ol>
+
+<p>
+ssl<sub>relay</sub> start new tcp session
+</p>
+<ol class="org-ol">
+<li>new session, associate with raw<sub>tcp</sub></li>
+<li>send start tcp to server</li>
+<li>raw<sub>tcp</sub> start relay</li>
+</ol>
+
+<p>
+ssl<sub>relay</sub> remote start
+</p>
+<ol class="org-ol">
+<li>new raw<sub>tcp</sub> associate with session</li>
+<li>raw<sub>tcp</sub> remote start(connect dst, start relay)</li>
+</ol>
+
+<p>
+### class raw<sub>tcp</sub>
+</p>
+
+<p>
+local:
+read data -&gt; send to ssl<sub>relay</sub>
+write data
+remote:
+connect to real remote
+read/write as local
+</p>
+
+
 <div class="figure">
 <p><object type="image/svg+xml" data="tcp.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
@@ -260,15 +302,59 @@ Sorry, your browser does not support SVG.</object>
 ## UDP
 </p>
 
+<p>
+class udp<sub>server</sub>
+class raw<sub>udp</sub>
+local
+</p>
+<ol class="org-ol">
+<li>recvmsg</li>
+<li>find session with dst/src, if found, goto 4</li>
+<li>new session, send start udp by ssl<sub>relay</sub></li>
+<li>send session data</li>
+</ol>
+<p>
+remote
+</p>
+<ol class="org-ol">
+<li>connect to remote</li>
+<li>start remote relay(recv -&gt; send by ssl<sub>relay</sub>)</li>
+</ol>
+
+<p>
+send:
+  found dst in _relays, bind src addr
+  send data
+</p>
+
+<p>
+ssl<sub>relay</sub>
+  found relay in _relays, if not found, use default(raw<sub>udp</sub>)
+  local: read data, let raw<sub>udp</sub> send data back
+  remote: read data, found associate raw<sub>udp</sub> send data
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="udpstartrelay.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+
 <div class="figure">
 <p><object type="image/svg+xml" data="udp.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
 </div>
+
+<p>
+ssl<sub>relay</sub>
+</p>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: YILY1-PC2069Y2</p>
-<p class="date">Created: 2021-11-25 四 11:57</p>
+<p class="date">Created: 2021-11-25 四 16:24</p>
 </div>
 </body>
 </html>

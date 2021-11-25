@@ -1,18 +1,20 @@
 #ifndef _GROXY_RELAY_SERVER_HPP
 #define _GROXY_RELAY_SERVER_HPP
 #include "relay.hpp"
+#include "raw_tcp.hpp"
+#include "ssl_relay.hpp"
 
 class relay_server
 {
 public:
-	relay_server(const relay_config &config):
-		_io_context(),// _ctx(ssl::context::tlsv12_client),
-		_config(config), _strand(_io_context.get_executor()),
+	explicit relay_server(const relay_config &config):
+        _config(config), _io_context(),// _ctx(ssl::context::tlsv12_client),
 		_acceptor(_io_context, tcp::endpoint(tcp::v4(), config.local_port)),
+        _strand(_io_context.get_executor()),
 		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(_io_context) {
 	}
 
-	void local_server_start();
+	void local_tcp_server_start();
 	void remote_server_start();
 
 	void start_server();
