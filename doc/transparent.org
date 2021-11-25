@@ -1,0 +1,96 @@
+## TCP
+
+  one connection(dst/src) one session
+#+BEGIN_SRC dot :file tcp.svg :cmdline -Kdot -Tsvg
+digraph tcp {
+  rankdir=LR
+  node[shape=box]
+  edge[dir=both]
+  subgraph cluster_local2 {
+    label="local2"
+    raw_tcp_2c[label="raw_tcp"]
+    raw_tcp_2d[label="raw_tcp"]
+    ssl_relay_2[label="ssl_relay"]
+    raw_tcp_2c -> ssl_relay_2
+    raw_tcp_2d -> ssl_relay_2
+  }
+  client_c -> raw_tcp_2c
+  client_d -> raw_tcp_2d
+  subgraph cluster_local1 {
+    label="local1"
+    raw_tcp_1a[label="raw_tcp"]
+    raw_tcp_1b[label="raw_tcp"]
+    raw_tcp_1a -> ssl_relay_1
+    raw_tcp_1b -> ssl_relay_1
+  }
+  client_a -> raw_tcp_1a
+  client_b -> raw_tcp_1b
+
+  subgraph cluster_server {
+    label="server"
+    s_ssl_relay_1[label="ssl_relay"]
+    s_ssl_relay_2[label="ssl_relay"]
+    s_raw_tcp_1a[label="raw_tcp"]
+    s_raw_tcp_1b[label="raw_tcp"]
+    s_raw_tcp_2c[label="raw_tcp"]
+    s_raw_tcp_2d[label="raw_tcp"]
+    s_ssl_relay_1 -> s_raw_tcp_1a
+    s_ssl_relay_1 -> s_raw_tcp_1b
+    s_ssl_relay_2 -> s_raw_tcp_2c
+    s_ssl_relay_2 -> s_raw_tcp_2d
+  }
+  ssl_relay_1->s_ssl_relay_1[ label="session1a\nsession1b"]
+
+  ssl_relay_2->s_ssl_relay_2[ label="session2c\nsession2d"]
+
+  s_raw_tcp_1a -> remote1a
+  s_raw_tcp_1b -> remote1b
+  s_raw_tcp_2c -> remote2c
+  s_raw_tcp_2d -> remote2d
+
+}
+#+END_SRC
+
+## UDP
+#+BEGIN_SRC dot :file udp.svg :cmdline -Kdot -Tsvg
+digraph udp {
+  rankdir=LR
+  node[shape=box]
+  edge[dir=both]
+
+  subgraph cluster_local2 {
+    label="local2"
+    raw_udp2[label="raw_udp"]
+    ssl_relay_2[label="ssl_relay"]
+    raw_udp2 -> ssl_relay_2
+  }
+  {client_c client_d }-> raw_udp2
+
+  subgraph cluster_local1 {
+    label="local1"
+    raw_udp1[label="raw_udp"]
+    ssl_relay_1[label="ssl_relay"]
+    raw_udp1 -> ssl_relay_1
+  }
+  {client_a client_b }-> raw_udp1
+  subgraph cluster_server {
+    label="server"
+    s_ssl_relay_1[label="ssl_relay"]
+    s_ssl_relay_2[label="ssl_relay"]
+    s_raw_udp_1a[label="raw_udp"]
+    s_raw_udp_1b[label="raw_udp"]
+    s_raw_udp_2c[label="raw_udp"]
+    s_raw_udp_2d[label="raw_udp"]
+    s_ssl_relay_1 -> s_raw_udp_1a
+    s_ssl_relay_1 -> s_raw_udp_1b
+    s_ssl_relay_2 -> s_raw_udp_2c
+    s_ssl_relay_2 -> s_raw_udp_2d
+  }
+  ssl_relay_1->s_ssl_relay_1[ label="session1a\nsession1b"]
+  ssl_relay_2->s_ssl_relay_2[ label="session2c\nsession2d"]
+  s_raw_udp_1a -> remote1a
+  s_raw_udp_1b -> remote1b
+  s_raw_udp_2c -> remote2c
+  s_raw_udp_2d -> remote2d
+}
+#+END_SRC

@@ -17,7 +17,7 @@ public:
 	int timeout {TIMEOUT};
 	_relay_t() {
 	};
-	explict _relay_t(const std::shared_ptr<raw_relay> &relay) :relay(relay) {};
+	explicit _relay_t(const std::shared_ptr<raw_relay> &relay) :relay(relay) {};
 	~_relay_t();
 };
 
@@ -32,7 +32,7 @@ ssl_relay::_relay_t::~_relay_t()
 }
 void ssl_relay::on_ssl_shutdown(const boost::system::error_code& error)
 {
-//	BOOST_LOG_TRIVIAL(info) << "ssl shutdown over";
+	BOOST_LOG_TRIVIAL(error) << "ssl shutdown over" << error;
 	boost::system::error_code err;
 	_sock.lowest_layer().shutdown(tcp::socket::shutdown_both, err);
 	_sock.lowest_layer().close(err);

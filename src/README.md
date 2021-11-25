@@ -44,3 +44,19 @@ tls connect between local server and remote server
 1. read from raw, add data to ssl_relay buffer.
 	  read error: close raw, tell ssl_relay to stop
 2. wait ssl_relay to send data to remote site.
+
+# transparent
+
+## tcp
+### local raw tcp
+1. accept client connect , make new raw_relay
+2. getsockname , get real dst, add raw_relay to _relays, add start data(sock5 connect cmd) to ssl_relay buffer, if ssl_relay not start, start ssl_relay.
+3. wait ssl_relay to start real relay:
+   1. read from client, add data relay to ssl_relay buffer.
+	  read error: close raw, tell ssl_relay to stop
+   2. wait ssl_relay to send data to client.
+
+## udp
+### local raw udp
+1. recvmsg, get dst src, create session
+
