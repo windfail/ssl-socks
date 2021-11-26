@@ -18,7 +18,7 @@ public:
 	int timeout {TIMEOUT};
 	_relay_t() {
 	};
-	explicit _relay_t(const std::shared_ptr<raw_relay> &relay) :relay(relay) {};
+	explicit _relay_t(const std::weak_ptr<raw_relay> &relay) :relay(relay) {};
 	~_relay_t();
 };
 
@@ -28,7 +28,7 @@ ssl_relay::_relay_t::~_relay_t()
 	// 	return;
 	// }
 	auto stop_raw = std::bind(&raw_relay::stop_raw_relay, relay, relay_data::from_ssl);
-	relay->get_strand().post(stop_raw, asio::get_associated_allocator(stop_raw));
+	relay->strand().post(stop_raw, asio::get_associated_allocator(stop_raw));
 
 }
 void ssl_relay::on_ssl_shutdown(const boost::system::error_code& error)
@@ -39,43 +39,44 @@ void ssl_relay::on_ssl_shutdown(const boost::system::error_code& error)
 	_sock.lowest_layer().close(err);
 
 	if (_config.type != REMOTE_SERVER) {
-//		BOOST_LOG_TRIVIAL(info) << "local destroy ssl sock";
-		// ssl_socket do not support move construct
-		// so mannually destroy and use placment new to reconstruct
-		_sock.~ssl_socket();
+        // remote server use new ssl_relay object when start new ssl, so do not need this
 //		BOOST_LOG_TRIVIAL(info) << "new ssl ctx";
 		auto _ctx = init_ssl(_config);
+		// ssl_socket do not support move construct
+		// so mannually destroy and use placment new to reconstruct
+//		BOOST_LOG_TRIVIAL(info) << "local destroy ssl sock";
+		_sock.~ssl_socket();
 //		BOOST_LOG_TRIVIAL(info) << "new ssl sock";
 		new(&_sock) ssl_socket (*_io_context, _ctx);
 	}
 	_ssl_status = NOT_START;
 }
 // if stop cmd is from raw relay, send stop cmd to ssl
-void ssl_relay::stop_ssl_relay(uint32_t session, relay_data::stop_src src)
+void ssl_relay::stop_ssl_relay()
 {
-	if (src == relay_data::ssl_err) {
-		// stop all raw_relay
+    // stop all raw_relay
 //		BOOST_LOG_TRIVIAL(info) << "ssl stop all relay :"<< _relays.size()<<" _relays "<<_bufs.size() <<"bufs ";
-		_relays.clear();
-		_bufs = std::queue<std::shared_ptr<relay_data>> ();
+    _relays.clear();
+    _bufs = std::queue<std::shared_ptr<relay_data>> ();
 
-		if (_ssl_status == SSL_START) {
-			_sock.async_shutdown(
-				asio::bind_executor(_strand,
-						    std::bind(&ssl_relay::on_ssl_shutdown, shared_from_this(),
-							      std::placeholders::_1)));
-			_ssl_status = SSL_CLOSED;
-		} else {
-			boost::system::error_code err;
-			_sock.lowest_layer().shutdown(tcp::socket::shutdown_both, err);
-			_sock.lowest_layer().close(err);
-			_ssl_status = NOT_START;
-		}
+    if (_ssl_status == SSL_START) {
+        // if ssl already start, we need do extra clean in on_ssl_shutdown
+        _sock.async_shutdown(
+            asio::bind_executor(_strand,
+                                std::bind(&ssl_relay::on_ssl_shutdown, shared_from_this(),
+                                          std::placeholders::_1)));
+        _ssl_status = SSL_CLOSED;
+    } else {
+        boost::system::error_code err;
+        _sock.lowest_layer().shutdown(tcp::socket::shutdown_both, err);
+        _sock.lowest_layer().close(err);
+        _ssl_status = NOT_START;
+    }
 //		BOOST_LOG_TRIVIAL(info) << "ssl stop over";
+}
 
-		return;
-	}
-
+void ssl_relay::stop_raw_relay(uint32_t session, relay_data::stop_src src)
+{
 	_relays.erase(session);
 	if (src == relay_data::from_raw) {
 		// send to ssl
@@ -84,7 +85,6 @@ void ssl_relay::stop_ssl_relay(uint32_t session, relay_data::stop_src src)
 		send_data_on_ssl(buffer);
 	}
 }
-
 
 // send data on ssl sock
 // buf is read from sock in raw_relay
@@ -133,7 +133,7 @@ void ssl_relay::local_handle_accept(std::shared_ptr<raw_tcp> relay)
 		_config.type == LOCAL_SERVER ?
 		std::bind(&raw_tcp::local_start, relay) :
 		std::bind(&raw_tcp::transparent_start, relay);
-	relay->get_strand().post(task, asio::get_associated_allocator(task));
+	relay->strand().post(task, asio::get_associated_allocator(task));
 }
 
 uint32_t ssl_relay::add_new_relay(const std::shared_ptr<raw_tcp> &relay)
@@ -172,7 +172,7 @@ void ssl_relay::ssl_data_send()
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << "ssl write error: "<<error.what();
-			stop_ssl_relay(0, relay_data::ssl_err);
+			stop_ssl_relay();
 		}
 	});
 }
@@ -192,17 +192,17 @@ void ssl_relay::do_ssl_data(std::shared_ptr<relay_data>& buf)
             relay = val->second->relay;
 		}
         if (relay == nullptr) {
-			stop_ssl_relay(session, relay_data::from_raw);
+			stop_raw_relay(session, relay_data::from_raw);
         } else {
             auto raw_data_send = std::bind(&raw_relay::send_data_on_raw, relay, buf);
-            relay->get_strand().post(raw_data_send, asio::get_associated_allocator(raw_data_send));
+            relay->strand().post(raw_data_send, asio::get_associated_allocator(raw_data_send));
         }
 	} else if (buf->cmd() == relay_data::START_UDP) { // remote get start udp
 	} else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
 		auto relay = std::make_shared<raw_tcp> (_io_context, shared_from_this(), session);
 		_relays[session] = std::make_shared<_relay_t>(relay);
 		auto start_task = std::bind(&raw_tcp::start_remote_connect, relay, buf);
-		relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
+		relay->strand().post(start_task, asio::get_associated_allocator(start_task));
 // 	} else if (buf->cmd() == relay_data::START_RELAY) {
 // //		BOOST_LOG_TRIVIAL(info) << session <<" START RELAY: ";
 // 		auto val = _relays.find(session);
@@ -212,7 +212,7 @@ void ssl_relay::do_ssl_data(std::shared_ptr<relay_data>& buf)
 // 			// local get start from remote, tell raw relay begin
 // 			auto relay = val->second->relay;
 // 			auto start_task = std::bind(&raw_relay::start_data_relay, relay);
-// 			relay->get_strand().post(start_task, asio::get_associated_allocator(start_task));
+// 			relay->strand().post(start_task, asio::get_associated_allocator(start_task));
 // 		}
 	} else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
 		_relays.erase(session);
@@ -246,7 +246,7 @@ void ssl_relay::ssl_data_read()
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << "ssl read error: "<<error.what();
-			stop_ssl_relay(0, relay_data::ssl_err);
+			stop_ssl_relay();
 		}
 	});
 
@@ -274,7 +274,7 @@ void ssl_relay::ssl_connect_start()
 
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << "ssl connect error: "<<error.what();
-			stop_ssl_relay(0, relay_data::ssl_err);
+			stop_ssl_relay();
 		}
 	};
 	asio::spawn(_strand, ssl_start);
@@ -304,7 +304,7 @@ void ssl_relay::timer_handle()
 	if (_timeout_rd < 0 && (_timeout_wr < 0 || _timeout_kp < 0)) {
 		// shutdown
 //		BOOST_LOG_TRIVIAL(info) << "ssl timeout: "<< _timeout_rd<< " "<<_timeout_wr<< " "<< _timeout_kp;
-		stop_ssl_relay(0, relay_data::ssl_err);
+		stop_ssl_relay();
 	}
 //	BOOST_LOG_TRIVIAL(info) << " ssl relay timer handle : "<< _timeout_rd<< " "<<_timeout_wr<< " "<< _timeout_kp;
 }

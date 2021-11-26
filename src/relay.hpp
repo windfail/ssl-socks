@@ -3,6 +3,8 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <queue>
+#include <memory>
+#include <cstdint>
 #include "gfwlist.hpp"
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
@@ -13,8 +15,11 @@ namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
 
 namespace asio = boost::asio;
+typedef asio::detail::socket_option::boolean<SOL_IP, IP_TRANSPARENT> _ip_transparent_t;
+
 //namespace ip = boost::asio::ip;
 using boost::asio::ip::tcp;
+using boost::asio::ip::udp;
 
 namespace ssl = boost::asio::ssl;
 typedef ssl::stream<tcp::socket> ssl_socket;
@@ -124,33 +129,27 @@ private:
 
 };
 
-// raw tcp , for client to local server and remote server to dest
+// raw relay , base class for raw_tcp and raw_udp
 class raw_relay
 {
 public:
-	raw_relay(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0) :
-		_session (session), _strand(io->get_executor()), _manager(manager)
-		{}
-	virtual ~raw_relay() {}
-	auto session() {return _session;}
-	void session(uint32_t id) { _session = id;}
+	raw_relay(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
+	virtual ~raw_relay();
+
+	uint32_t session();
+	void session(uint32_t id);
+	asio::strand<asio::io_context::executor_type> & strand();
+    std::shared_ptr<ssl_relay> & manager();
+
 	void stop_raw_relay(relay_data::stop_src);
-	auto & get_strand() {
-		return _strand;
-	}
 	void send_data_on_raw(std::shared_ptr<relay_data> buf);
-protected:
-	uint32_t _session;
-	asio::strand<asio::io_context::executor_type> _strand;
-
-	std::shared_ptr<ssl_relay> _manager;
-	std::queue<std::shared_ptr<relay_data>> _bufs; // buffers for write
-	bool _stopped = false;
-	std::string local_buf;
-	std::string remote_buf;
-
+	void send_next_data();
 	virtual void stop_this_relay() = 0;
-    virtual void start_raw_send() = 0;
+    virtual void start_raw_send(std::shared_ptr<relay_data> buf) = 0;
+protected:
+    struct raw_impl;
+    std::unique_ptr<raw_impl> _impl;
+
 };
 
 // class base_relay

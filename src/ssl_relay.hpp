@@ -28,10 +28,11 @@ public:
 		BOOST_LOG_TRIVIAL(info) << "ssl relay destruct";
 	};
 
-	auto & get_strand() {
+	auto & strand() {
 		return _strand;
 	}
-	void stop_ssl_relay(uint32_t session, relay_data::stop_src src);
+	void stop_ssl_relay();
+	void stop_raw_relay(uint32_t session, relay_data::stop_src src);
 	void send_data_on_ssl(std::shared_ptr<relay_data> buf);
 
 	ssl_socket & get_sock() {return _sock;}
@@ -61,7 +62,7 @@ private:
 	//std::shared_ptr<ssl_socket>  _sock;
 	ssl_socket _sock;
 
-    // _relays 
+    // _relays
 	std::unordered_map<uint32_t, std::shared_ptr<_relay_t>> _relays;
     // default relay used for local udp relay
     std::shared_ptr<raw_relay> default_relay;

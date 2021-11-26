@@ -8,12 +8,18 @@ class relay_server
 {
 public:
 	explicit relay_server(const relay_config &config):
-        _config(config), _io_context(),// _ctx(ssl::context::tlsv12_client),
-		_acceptor(_io_context, tcp::endpoint(tcp::v4(), config.local_port)),
+        _config(config), _io_context(),
+		_acceptor(_io_context, tcp::v4()),
         _strand(_io_context.get_executor()),
 		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(_io_context) {
+        _acceptor.set_option(tcp::acceptor::reuse_address(true));
+        _acceptor.set_option(tcp::acceptor::keep_alive(true));
+        _acceptor.set_option(_ip_transparent_t(true));
+        _acceptor.bind(tcp::endpoint(tcp::v4(), config.local_port));
+        _acceptor.listen();
 	}
 
+    void local_udp_server_start();
 	void local_tcp_server_start();
 	void remote_server_start();
 
