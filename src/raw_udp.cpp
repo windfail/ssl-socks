@@ -22,6 +22,7 @@ struct raw_udp::udp_impl
     udp::socket *_r_sock;
     udp::endpoint *_dst;
 
+
     std::map<std::pair<udp::endpoint, udp::endpoint>, uint32_t> _addrs;
     std::unordered_map<uint32_t, std::pair<udp::endpoint, udp::endpoint>*> _sess_addrs;
 
@@ -52,23 +53,14 @@ void raw_udp::start_remote_relay()
     auto self(shared_from_this());
     asio::spawn(strand(), [this, self](asio::yield_context yield) {
         try {
-            _impl->_sock.async_connect(_impl->_remote);
-
-            if (session() == 0) {
-                // for tproxy rebind to remote dst
-                auto dst = _impl->_sess_addrs.find(buf->session());
-                if (dst == _impl->_sess_addrs.end()) {
-                    return ;
-                }
-                _impl->_dst = & dst->second->first;
-                auto &src = dst->second->second;
+            _impl->_sock.async_connect(_impl->_remote, yield);
+            while (true) {
+                auto buf = std::make_shared<relay_data>(session());
+                auto len = _impl->_sock.async_receive(buf->data_buffer(), yield);
+                buf->resize(len);
+                auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buf);
+                manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
             }
-            auto len = _impl->_w_sock->async_send_to(buf->data_buffer(), *_impl->_dst, yield);
-            if (len != buf->data_size()) {
-                auto emsg = boost::format(" wlen%1%, buflen%2%")%len%buf->data_size();
-                throw_err_msg(emsg.str());
-            }
-            send_next_data();
         } catch (boost::system::system_error& error) {
             BOOST_LOG_TRIVIAL(error) << "raw write error: "<<error.what();
             stop_raw_relay(relay_data::from_raw);

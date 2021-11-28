@@ -4,7 +4,7 @@
 
 // raw tcp , for client to local server and remote server to dest
 class raw_tcp
-	:public raw_relay, std::enable_shared_from_this<raw_tcp>
+	:public raw_relay
 {
 public:
 	raw_tcp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);

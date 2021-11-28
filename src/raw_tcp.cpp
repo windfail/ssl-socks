@@ -106,8 +106,9 @@ void raw_tcp::start_data_relay()
 				//	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
 				// post to manager
 				buf->resize(len);
-				auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buf);
-				manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
+                manager()->send_data_on_ssl(buf);
+				// auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buf);
+				// manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << "raw read error: "<<error.what();
@@ -201,8 +202,9 @@ void raw_tcp::transparent_start()
     // }
 
 //	BOOST_LOG_TRIVIAL(info) << " send start remote data: \n" << buf_to_string(buffer->data_buffer().data(), buffer->data_buffer().size());
-	auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buffer);
-	manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
+    manager()->send_data_on_ssl(buffer);
+	// auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buffer);
+	// manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
     start_data_relay();
     } catch (boost::system::system_error& error) {
         BOOST_LOG_TRIVIAL(error) << "local start error: "<<error.what();
@@ -245,8 +247,9 @@ void raw_tcp::local_start()
 				std::copy_n(data, len -3, (uint8_t*)buffer->data_buffer().data());
 //	BOOST_LOG_TRIVIAL(info) << " send start remote data: \n" << buf_to_string(buffer->data_buffer().data(), buffer->data_buffer().size());
 				buffer->resize(len -3);
-				auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buffer);
-				manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
+                manager()->send_data_on_ssl(buffer);
+				// auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buffer);
+				// manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
 			} else {
 				auto re_hosts = _impl->_host_resolve.async_resolve(host, port, yield);
 				asio::async_connect(_impl->_sock_remote, re_hosts, yield);

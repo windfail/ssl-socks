@@ -47,17 +47,22 @@ std::shared_ptr<ssl_relay> & raw_relay::manager()
 // common functions
 void raw_relay::stop_raw_relay(const relay_data::stop_src src)
 {
-	if (_impl->_stopped) {
-		//already stopped
-		return;
-	}
-	_impl->_stopped = true;
+    auto self(shared_from_this());
+    auto stop=[this, self, src]()
+    {
+        if (_impl->_stopped) {
+            //already stopped
+            return;
+        }
+        _impl->_stopped = true;
 //	BOOST_LOG_TRIVIAL(info) << " raw relay "<<_session <<" stopped: "<< "from "<< src<< _stopped;
-    stop_this_relay();
-	if (src == relay_data::from_raw) {
-		auto task_ssl = std::bind(&ssl_relay::stop_raw_relay, _impl->_manager, _impl->_session, src);
-		_impl->_manager->strand().post(task_ssl, asio::get_associated_allocator(task_ssl));
-	}
+        stop_this_relay();
+        if (src == relay_data::from_raw) {
+            auto task_ssl = std::bind(&ssl_relay::stop_raw_relay, _impl->_manager, _impl->_session, src);
+            _impl->_manager->strand().post(task_ssl, asio::get_associated_allocator(task_ssl));
+        }
+    };
+    _impl->_strand.dispatch(stop, asio::get_associated_allocator(stop));
 }
 
 void raw_relay::send_data_on_raw(std::shared_ptr<relay_data> buf)

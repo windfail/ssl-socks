@@ -147,8 +147,7 @@ void relay_server::start_timer()
 
 			for (auto relay = _ssl_relays.begin(); relay != _ssl_relays.end();) {
 				if (auto ssl_relay = relay->lock()) {
-					auto ssl_timer = std::bind(&ssl_relay::timer_handle, ssl_relay);
-					ssl_relay->strand().post(ssl_timer, asio::get_associated_allocator(ssl_timer));
+					ssl_relay->timer_handle();
 					relay++;
 				} else {
 					BOOST_LOG_TRIVIAL(info) << " main timer erase ";
