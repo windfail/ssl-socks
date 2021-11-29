@@ -27,6 +27,54 @@
   connect to real remote
   read/write as local
 
+#+BEGIN_SRC dot :file class.svg :cmdline -Kdot -Tsvg
+digraph tcp {
+  rankdir=LR
+  node[shape=box]
+  edge[style=dashed]
+  subgraph cluster_local {
+    label="local"
+    raw_tcp -> ssl_relay_tcp[ label="weak_ptr"]
+    ssl_relay_tcp->raw_tcp[style=solid label="shared_ptr"]
+    relay_server -> {raw_tcp } [ label="create" constraint=false]
+    relay_server -> {ssl_relay_udp ssl_relay_tcp} [label="create\nweak_ptr" ]
+
+    raw_udp -> ssl_relay_udp[ label="weak_ptr"]
+    ssl_relay_udp->raw_udp[style=solid label="shared_ptr" constraint=false]
+    ssl_relay_udp->raw_udp[label="create" constraint=false]
+  }
+  tcp_client -> relay_server[ label="connect\naccept"]
+  tcp_client->raw_tcp[dir=both label="read/write"]
+  udp_client -> relay_server[label="send"]
+  udp_client->raw_udp[dir=back label="send" ]
+
+
+  subgraph cluster_server {
+    label="server"
+      s_ssl_relay_tcp[label="ssl_relay_tcp"]
+      s_raw_tcp[label="raw_tcp"]
+      s_relay_server[label="relay_server"]
+      s_ssl_relay_tcp -> s_raw_tcp[ label="create"]
+      s_ssl_relay_tcp -> s_raw_tcp[style=solid label="shared_ptr"]
+      s_raw_tcp -> s_ssl_relay_tcp[ label="weak_ptr"]
+      s_relay_server->s_ssl_relay_tcp[ label="create\nweak_ptr" constraint=false]
+
+      s_ssl_relay_udp->s_raw_udp[label="create"]
+      s_ssl_relay_udp -> s_raw_udp[style=solid label="shared_ptr"]
+      s_raw_udp -> s_ssl_relay_udp[ label="weak_ptr"]
+      s_relay_server->s_ssl_relay_udp[ label="create\nweak_ptr" constraint=false]
+  }
+  ssl_relay_tcp->s_ssl_relay_tcp[dir=both label="read/write"]
+  {ssl_relay_tcp ssl_relay_udp}->s_relay_server[ label="connect\naccept" constraint=false]
+
+  ssl_relay_udp->s_ssl_relay_udp[dir=both label="read/write"]
+  s_raw_tcp -> tcp_remote[ label="connect\naccept"]
+  s_raw_udp -> udp_remote[ dir=both label="send"]
+
+}
+#+END_SRC
+
+
 #+BEGIN_SRC dot :file tcp.svg :cmdline -Kdot -Tsvg
 digraph tcp {
   rankdir=LR
@@ -39,13 +87,16 @@ digraph tcp {
     ssl_relay_2[label="ssl_relay"]
     raw_tcp_2c -> ssl_relay_2
     raw_tcp_2d -> ssl_relay_2
+
   }
   client_c -> raw_tcp_2c
   client_d -> raw_tcp_2d
+
   subgraph cluster_local1 {
     label="local1"
     raw_tcp_1a[label="raw_tcp"]
     raw_tcp_1b[label="raw_tcp"]
+    ssl_relay_1[label="ssl_relay"]
     raw_tcp_1a -> ssl_relay_1
     raw_tcp_1b -> ssl_relay_1
   }
@@ -54,19 +105,24 @@ digraph tcp {
 
   subgraph cluster_server {
     label="server"
-    s_ssl_relay_1[label="ssl_relay"]
-    s_ssl_relay_2[label="ssl_relay"]
-    s_raw_tcp_1a[label="raw_tcp"]
-    s_raw_tcp_1b[label="raw_tcp"]
-    s_raw_tcp_2c[label="raw_tcp"]
-    s_raw_tcp_2d[label="raw_tcp"]
-    s_ssl_relay_1 -> s_raw_tcp_1a
-    s_ssl_relay_1 -> s_raw_tcp_1b
-    s_ssl_relay_2 -> s_raw_tcp_2c
-    s_ssl_relay_2 -> s_raw_tcp_2d
+    subgraph relay1 {
+      label=""
+      s_ssl_relay_1[label="ssl_relay"]
+      s_raw_tcp_1a[label="raw_tcp"]
+      s_raw_tcp_1b[label="raw_tcp"]
+      s_ssl_relay_1 -> s_raw_tcp_1a
+      s_ssl_relay_1 -> s_raw_tcp_1b
+    }
+    subgraph relay2 {
+      s_ssl_relay_2[label="ssl_relay"]
+      s_raw_tcp_2c[label="raw_tcp"]
+      s_raw_tcp_2d[label="raw_tcp"]
+      s_ssl_relay_2 -> s_raw_tcp_2c
+      s_ssl_relay_2 -> s_raw_tcp_2d
+      }
+
   }
   ssl_relay_1->s_ssl_relay_1[ label="session1a\nsession1b"]
-
   ssl_relay_2->s_ssl_relay_2[ label="session2c\nsession2d"]
 
   s_raw_tcp_1a -> remote1a
@@ -76,6 +132,50 @@ digraph tcp {
 
 }
 #+END_SRC
+
+#+BEGIN_SRC dot :file udp.svg :cmdline -Kdot -Tsvg
+digraph udp {
+  rankdir=LR
+  node[shape=box]
+  edge[dir=both]
+
+  subgraph cluster_local2 {
+    label="local2"
+    raw_udp2[label="raw_udp"]
+    ssl_relay_2[label="ssl_relay"]
+    raw_udp2 -> ssl_relay_2
+  }
+  {client_c client_d }-> raw_udp2
+
+  subgraph cluster_local1 {
+    label="local1"
+    raw_udp1[label="raw_udp"]
+    ssl_relay_1[label="ssl_relay"]
+    raw_udp1 -> ssl_relay_1
+  }
+  {client_a client_b }-> raw_udp1
+  subgraph cluster_server {
+    label="server"
+    s_ssl_relay_1[label="ssl_relay"]
+    s_ssl_relay_2[label="ssl_relay"]
+    s_raw_udp_1a[label="raw_udp"]
+    s_raw_udp_1b[label="raw_udp"]
+    s_raw_udp_2c[label="raw_udp"]
+    s_raw_udp_2d[label="raw_udp"]
+    s_ssl_relay_1 -> s_raw_udp_1a
+    s_ssl_relay_1 -> s_raw_udp_1b
+    s_ssl_relay_2 -> s_raw_udp_2c
+    s_ssl_relay_2 -> s_raw_udp_2d
+  }
+  ssl_relay_1->s_ssl_relay_1[ label="session1a\nsession1b"]
+  ssl_relay_2->s_ssl_relay_2[ label="session2c\nsession2d"]
+  s_raw_udp_1a -> remote1a
+  s_raw_udp_1b -> remote1b
+  s_raw_udp_2c -> remote2c
+  s_raw_udp_2d -> remote2d
+}
+#+END_SRC
+
 
 ## UDP
 
@@ -125,47 +225,3 @@ digraph udp {
   }
 }
 #+END_SRC
-#+BEGIN_SRC dot :file udp.svg :cmdline -Kdot -Tsvg
-digraph udp {
-  rankdir=LR
-  node[shape=box]
-  edge[dir=both]
-
-  subgraph cluster_local2 {
-    label="local2"
-    raw_udp2[label="raw_udp"]
-    ssl_relay_2[label="ssl_relay"]
-    raw_udp2 -> ssl_relay_2
-  }
-  {client_c client_d }-> raw_udp2
-
-  subgraph cluster_local1 {
-    label="local1"
-    raw_udp1[label="raw_udp"]
-    ssl_relay_1[label="ssl_relay"]
-    raw_udp1 -> ssl_relay_1
-  }
-  {client_a client_b }-> raw_udp1
-  subgraph cluster_server {
-    label="server"
-    s_ssl_relay_1[label="ssl_relay"]
-    s_ssl_relay_2[label="ssl_relay"]
-    s_raw_udp_1a[label="raw_udp"]
-    s_raw_udp_1b[label="raw_udp"]
-    s_raw_udp_2c[label="raw_udp"]
-    s_raw_udp_2d[label="raw_udp"]
-    s_ssl_relay_1 -> s_raw_udp_1a
-    s_ssl_relay_1 -> s_raw_udp_1b
-    s_ssl_relay_2 -> s_raw_udp_2c
-    s_ssl_relay_2 -> s_raw_udp_2d
-  }
-  ssl_relay_1->s_ssl_relay_1[ label="session1a\nsession1b"]
-  ssl_relay_2->s_ssl_relay_2[ label="session2c\nsession2d"]
-  s_raw_udp_1a -> remote1a
-  s_raw_udp_1b -> remote1b
-  s_raw_udp_2c -> remote2c
-  s_raw_udp_2d -> remote2d
-}
-#+END_SRC
-
-ssl_relay
