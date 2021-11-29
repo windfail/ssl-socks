@@ -23,7 +23,6 @@ private:
     struct server_impl;
     std::unique_ptr<server_impl> _impl;
 
-
 //	void handle_timer(const boost::system::error_code& err);
 	void start_timer();
 };

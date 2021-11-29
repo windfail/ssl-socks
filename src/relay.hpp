@@ -2,6 +2,7 @@
 #define _GROXY_RELAY_HPP
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/spawn.hpp>
 #include <queue>
 #include <memory>
 #include <cstdint>

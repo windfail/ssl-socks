@@ -9,7 +9,7 @@
 
 // ssl relay , maintain tls between local server and remote server
 class ssl_relay
-	:public std::enable_shared_from_this<ssl_relay>
+	:public base_relay, std::enable_shared_from_this<ssl_relay>
 {
 public:
 	ssl_relay(asio::io_context *io, const relay_config &config);
@@ -17,6 +17,7 @@ public:
     ~ssl_relay();
 
     ssl_socket & get_sock();
+    void add_raw_tcp(const std::shared_ptr<raw_tcp> &relay);
 	void ssl_stop_raw_relay(uint32_t session, relay_data::stop_src src);
 
 	void send_data_on_ssl(const std::shared_ptr<relay_data> &buf);
