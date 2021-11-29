@@ -128,29 +128,28 @@ private:
 
 
 };
-
-// raw relay , base class for raw_tcp and raw_udp
-class raw_relay
-    :public std::enable_shared_from_this<raw_relay>
+class base_relay
 {
 public:
-	raw_relay(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
-	virtual ~raw_relay();
+    explicit base_relay(asio::io_context *io) :
+        _io_context(io), _strand(io->get_executor())
+    {}
+    ~base_relay() = default;
+    // use dispatch to run in own strand
+    template<typename T> void run_in_strand(T &&func)
+    {
+        _strand.dispatch(func, asio::get_associated_allocator(func));
+    }
 
-	uint32_t session();
-	void session(uint32_t id);
-	asio::strand<asio::io_context::executor_type> & strand();
-    std::shared_ptr<ssl_relay> & manager();
+    // spawn coroutin in own strand
+    template<typename T> void spawn_in_strand(T &&func)
+    {
+        asio::spawn(_strand, func);
+    }
 
-	void stop_raw_relay(relay_data::stop_src);
-	void send_data_on_raw(std::shared_ptr<relay_data> buf);
-	void send_next_data();
-	virtual void stop_this_relay() = 0;
-    virtual void start_raw_send(std::shared_ptr<relay_data> buf) = 0;
-protected:
-    struct raw_impl;
-    std::unique_ptr<raw_impl> _impl;
-
+private:
+	asio::io_context *_io_context;
+	asio::strand<asio::io_context::executor_type> _strand;
 };
 
 // class base_relay

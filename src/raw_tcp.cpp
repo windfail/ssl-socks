@@ -87,9 +87,10 @@ static std::pair<std::string, std::string> parse_address(uint8_t *data, std::siz
 
 }
 
-void raw_tcp::stop_this_relay()
+void raw_tcp::stop_this_relay(const relay_data::stop_src src)
 {
 //	BOOST_LOG_TRIVIAL(info) << " raw relay "<<session() <<" stopped: "<< "from "<< src<< _stopped;
+    stop_raw_relay(src);
 	boost::system::error_code err;
 	_impl->_sock.shutdown(tcp::socket::shutdown_both, err);
 	_impl->_sock.close(err);
@@ -118,6 +119,7 @@ void raw_tcp::start_data_relay()
 }
 
 // local server functions
+// for non-blocked hosts in socks5 mode, directly relay
 // dir: true - read from remote / send to local client
 //      false - read from local client / send to remote
 void raw_tcp::local_relay(bool dir)
@@ -150,7 +152,7 @@ void raw_tcp::local_relay(bool dir)
 	});
 }
 
-extern "C" 
+extern "C"
 {
     extern int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
     int get_dst_addr(int sock, struct sockaddr_storage *ss, socklen_t *len);
@@ -294,17 +296,26 @@ void raw_tcp::start_remote_connect(std::shared_ptr<relay_data> buf)
 		}
 	});
 }
-void raw_tcp::start_raw_send(std::shared_ptr<relay_data> buf)
+void raw_tcp::send_data_on_raw(const std::shared_ptr<relay_data> &buf)
+{
+    auto bufs = buffers();
+    bufs.push_back(buf);
+    
+}
+void raw_tcp::start_raw_send(data_t &bufs)
 {
 	auto self(shared_from_this());
-	asio::spawn(strand(), [this, self, buf](asio::yield_context yield) {
+	asio::spawn(strand(), [this, self, bufs](asio::yield_context yield) {
 		try {
-            auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
-            if (len != buf->data_size()) {
-                auto emsg = boost::format(" wlen%1%, buflen%2%")%len%buf->data_size();
-                throw_err_msg(emsg.str());
+            while (!bufs.empty()) {
+                auto buf = bufs.front();
+                auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
+                if (len != buf->data_size()) {
+                    auto emsg = boost::format(" wlen%1%, buflen%2%")%len%buf->data_size();
+                    throw_err_msg(emsg.str());
+                }
+                bufs.pop();
             }
-            send_next_data();
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << "raw write error: "<<error.what();
 			stop_raw_relay(relay_data::from_raw);
