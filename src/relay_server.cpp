@@ -3,9 +3,9 @@
 
 struct relay_server::server_impl
 {
-    server_impl(asio::io_context *io, const relay_config &config):
+    server_impl(asio::io_context &io, const relay_config &config):
         _config(config), _io(io),
-		_acceptor(*io, tcp::v4()),
+		_acceptor(io, tcp::v4()),
         // _strand(*io.get_executor()),
 		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(*io) {
 
@@ -18,10 +18,10 @@ struct relay_server::server_impl
     ~server_impl() = default;
 
     void impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp);
-    
+
 	relay_config _config;
 
-	asio::io_context *_io;
+	asio::io_context &_io;
 	tcp::acceptor _acceptor;
 	// asio::strand<asio::io_context::executor_type> _strand;
 //	ssl::context _ctx;
@@ -46,10 +46,11 @@ void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> 
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
         _ssl_relays.push_back(ssl_ptr);
         // init and connect to remote
+        ssl_ptr->start_connect();
     }
     ssl_ptr->add_raw_tcp(new_tcp);
 }
-relay_server::relay_server(asio::io_context *io, const relay_config &config):
+relay_server::relay_server(asio::io_context &io, const relay_config &config):
     base_relay(io), _impl(io, config)
 {
 }
@@ -100,10 +101,10 @@ void relay_server::remote_server_start()
     spawn_in_strand( [this](asio::yield_context yield) {
 		while (true) {
 			try {
-				auto ssl_ptr = std::make_shared<ssl_relay> (_impl->_io_context, _impl->_config);
+				auto ssl_ptr = std::make_shared<ssl_relay> (_impl->_io, _impl->_config);
 				_impl->_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
 //						       std::bind(&relay_server::remote_handle_accept, this, ssl_ptr, std::placeholders::_1));
-                ssl_ptr->start_connect(REMOTE_SERVER);
+                ssl_ptr->start_relay();
 				// auto task = std::bind(&ssl_relay::ssl_connect_start, ssl_ptr);
 				// ssl_ptr->strand().post(task, asio::get_associated_allocator(task));
 				_impl->_ssl_relays.emplace_back(ssl_ptr);

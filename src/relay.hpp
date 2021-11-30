@@ -143,6 +143,7 @@ public:
     void send_data(const std::shared_ptr<relay_data> &buf);
     void start_send();
 
+    virtual void start_relay() = 0;
 private:
     struct base_impl;
     std::unique_ptr<base_impl> _impl;

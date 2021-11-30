@@ -18,11 +18,10 @@ public:
 
     ssl_socket & get_sock();
     void add_raw_tcp(const std::shared_ptr<raw_tcp> &relay);
-	void ssl_stop_raw_relay(uint32_t session, relay_data::stop_src src);
 
-	void send_data_on_ssl(const std::shared_ptr<relay_data> &buf);
-	void ssl_connect_start();
-	void local_handle_accept(const std::shared_ptr<raw_tcp> &relay);
+    // raw relay call ssl to stop raw, send to peer too
+	void ssl_stop_raw_relay(uint32_t session);
+    void start_relay();
 
 	void timer_handle();
 	bool check_host_gfw(const std::string &host);

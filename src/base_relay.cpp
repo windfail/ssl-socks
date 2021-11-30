@@ -54,6 +54,7 @@ void base_relay::start_send()
             }
         } catch (boost::system::system_error& error) {
             BOOST_LOG_TRIVIAL(error) << " relay error: "<<error.what();
+            internal_stop_relay();
         }
     });
 }
