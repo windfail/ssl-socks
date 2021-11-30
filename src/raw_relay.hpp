@@ -5,10 +5,10 @@
 
 // raw relay , base class for raw_tcp and raw_udp
 class raw_relay
-    :protected base_relay, public std::enable_shared_from_this<raw_relay>
+    :protected base_relay
 {
 public:
-    raw_relay(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
+    raw_relay(asio::io_context &io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
     virtual ~raw_relay();
 
     uint32_t session();

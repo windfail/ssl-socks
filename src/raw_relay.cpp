@@ -7,8 +7,10 @@
 
 struct raw_relay::raw_impl
 {
-    raw_impl(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, raw_relay *owner, uint32_t session = 0) :
-		_session (session), _strand(io->get_executor()), _owner(owner->shared_from_this()), _manager(manager)
+    raw_impl(asio::io_context &io, const std::shared_ptr<ssl_relay> &manager, raw_relay *owner, uint32_t session = 0) :
+		_session (session), _strand(io.get_executor()),
+        _owner(owner),
+        _manager(manager)
     {}
     ~raw_impl()=default;
 
@@ -17,7 +19,7 @@ struct raw_relay::raw_impl
 	uint32_t _session;
 	asio::strand<asio::io_context::executor_type> _strand;
 
-    std::weak_ptr<raw_relay> _owner;
+    raw_relay *_owner;
 	std::shared_ptr<ssl_relay> _manager;
 	std::queue<std::shared_ptr<relay_data>> _bufs; // buffers for write
 	bool _stopped = false;
@@ -37,7 +39,7 @@ void raw_relay::raw_impl::impl_stop_relay(const relay_data::stop_src src)
     }
 }
 
-raw_relay::raw_relay(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session) :
+raw_relay::raw_relay(asio::io_context &io, const std::shared_ptr<ssl_relay> &manager, uint32_t session) :
     base_relay(io), _impl(std::make_unique<raw_relay::raw_impl> (io, manager, this, session))
 {}
 

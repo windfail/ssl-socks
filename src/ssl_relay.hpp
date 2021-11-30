@@ -9,7 +9,7 @@
 
 // ssl relay , maintain tls between local server and remote server
 class ssl_relay
-	:public base_relay, std::enable_shared_from_this<ssl_relay>
+	:public base_relay
 {
 public:
 	ssl_relay(asio::io_context *io, const relay_config &config);
@@ -30,6 +30,7 @@ public:
 private:
     struct ssl_impl;
     std::unique_ptr<ssl_impl> _impl;
+    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield);
 
 };
 
