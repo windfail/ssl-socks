@@ -1,14 +1,13 @@
 #ifndef _GROXY_RELAY_SERVER_HPP
 #define _GROXY_RELAY_SERVER_HPP
 #include "relay.hpp"
-#include "raw_tcp.hpp"
-#include "ssl_relay.hpp"
+#include "base_relay.hpp"
 
 class relay_server
     :public base_relay
 {
 public:
-	relay_server(asio::io_context *io, const relay_config &config);
+	explicit relay_server(asio::io_context &io, const relay_config &config);
     ~relay_server();
 
     void local_udp_server_start();
@@ -17,14 +16,16 @@ public:
 
 	void start_server();
 
-	// void run();// { _io_context.run(); }
+    void start_relay();
 
 private:
     struct server_impl;
     std::unique_ptr<server_impl> _impl;
 
-//	void handle_timer(const boost::system::error_code& err);
 	void start_timer();
+
+    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
+    void internal_stop_relay()=0;
 };
 
 #endif

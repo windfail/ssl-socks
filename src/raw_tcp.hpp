@@ -1,26 +1,26 @@
 #ifndef _SSL_SOCKS_RAW_TCP_HPP
 #define _SSL_SOCKS_RAW_TCP_HPP
 #include "raw_relay.hpp"
+#include "relay.hpp"
 
 // raw tcp , for client to local server and remote server to dest
 class raw_tcp
 	:public raw_relay
 {
 public:
-	raw_tcp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
+	raw_tcp(asio::io_context &io, server_type type, const tcp::endpoint &remote=tcp::endpoint());
 	~raw_tcp();
-	void local_start();
-	void transparent_start();
+	// void local_start();
+	// void transparent_start();
 	tcp::socket & get_sock();
-	void stop_this_relay(const relay_data::stop_src);
-    void start_raw_send(const std::shared_ptr<relay_data> &buf);
-	void start_data_relay();
+	void start_relay();
 
-	void start_remote_connect(const std::shared_ptr<relay_data> &buf);
-
+    void stop_raw_relay();
 private:
     struct tcp_impl;
     std::unique_ptr<tcp_impl> _impl;
+    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield);
+    void internal_stop_relay();
 
 	void local_relay(bool dir);
 

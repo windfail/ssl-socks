@@ -1,14 +1,15 @@
 #ifndef _SSL_SOCKS_RAW_RELAY_HPP
 #define _SSL_SOCKS_RAW_RELAY_HPP
-#include <boost/asio/spawn.hpp>
 #include "relay.hpp"
+#include "base_relay.hpp"
 
 // raw relay , base class for raw_tcp and raw_udp
 class raw_relay
     :public base_relay
 {
 public:
-    raw_relay(asio::io_context &io, const std::shared_ptr<ssl_relay> &manager, uint32_t session = 0);
+    raw_relay(asio::io_context &io);
+    // raw_relay(asio::io_context &io, std::shared_ptr<ssl_relay> manager=nullptr, uint32_t session = 0);
     virtual ~raw_relay();
 
     uint32_t session();

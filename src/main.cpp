@@ -43,14 +43,15 @@ int server_start(const relay_config &config)
 {
 	init_log(config.logfile);
 
-	relay_server server(config);
+    asio::io_context io;
+	relay_server server(io, config);
 	server.start_server();
 
 	std::vector<std::thread> server_th;
 	for (int i = 1; i < config.thread_num; i++) {
-		server_th.emplace_back([&](){ server.run();});
+		server_th.emplace_back([&](){ server.start_relay();});
 	}
-	server.run();
+	server.start_relay();
 
 	return 0;
 

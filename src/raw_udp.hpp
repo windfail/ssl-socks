@@ -1,8 +1,8 @@
 #ifndef _SSL_SOCKS_RAW_UDP_HPP
 #define _SSL_SOCKS_RAW_UDP_HPP
-#include <map>
-#include <unordered_map>
+#include <memory>
 #include "relay.hpp"
+#include "raw_relay.hpp"
 
 // raw udp, for client to local server and remote server to dest
 class raw_udp
