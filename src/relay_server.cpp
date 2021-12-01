@@ -12,11 +12,16 @@ struct relay_server::server_impl
         _strand(io.get_executor()),
 		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(io)
     {
-        _acceptor.set_option(tcp::acceptor::reuse_address(true));
-        _acceptor.set_option(tcp::acceptor::keep_alive(true));
-        _acceptor.set_option(_ip_transparent_t(true));
-        _acceptor.bind(tcp::endpoint(tcp::v4(), config.local_port));
-        _acceptor.listen();
+        try {
+            _acceptor.set_option(tcp::acceptor::reuse_address(true));
+            _acceptor.set_option(tcp::acceptor::keep_alive(true));
+            if (config.type == LOCAL_TRANSPARENT)
+                _acceptor.set_option(_ip_transparent_t(true));
+            _acceptor.bind(tcp::endpoint(tcp::v4(), config.local_port));
+            _acceptor.listen();
+        } catch (boost::system::system_error& error) {
+            BOOST_LOG_TRIVIAL(error) << "relay server init error: "<<error.what();
+        }
 	}
     ~server_impl() = default;
 
