@@ -123,6 +123,7 @@ void raw_tcp::stop_raw_relay()
     auto self(shared_from_this());
     run_in_strand([this, self](){
         // call close socket
+        BOOST_LOG_TRIVIAL(info) << "stop raw tcp";
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);
@@ -131,6 +132,7 @@ void raw_tcp::stop_raw_relay()
 
 void raw_tcp::internal_stop_relay()
 {
+	BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp";
     stop_raw_relay();
     auto mngr = manager();
     auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);
@@ -256,7 +258,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 		try {
 			std::vector<uint8_t> buf(512,0);
 			auto len = _sock.async_receive(asio::buffer(buf), yield);
-			BOOST_LOG_TRIVIAL(info) << "local start rec len " << len <<" data " << buf[0] << buf[1] <<buf[2] ;
+			// BOOST_LOG_TRIVIAL(info) << "local start rec len " << len <<" data " << buf[0] << buf[1] <<buf[2] ;
 			buf[0] = 5, buf[1] = 0;
 			len = async_write(_sock, asio::buffer(buf, 2), yield);
 
@@ -264,10 +266,10 @@ void raw_tcp::tcp_impl::impl_start_local()
 				auto emsg = boost::format("write 0x5 0x0, len %1%")%len;
 				throw_err_msg(emsg.str());
 			}
-			BOOST_LOG_TRIVIAL(info) << "local start writeback "  ;
+			// BOOST_LOG_TRIVIAL(info) << "local start writeback "  ;
 // get sock5 connect cmd
 			len = _sock.async_read_some(asio::buffer(buf), yield);
-			BOOST_LOG_TRIVIAL(info) << "local read cmd "  ;
+			// BOOST_LOG_TRIVIAL(info) << "local read cmd "  ;
 			if (len < 6 || buf[1] != 1 ) {
 				auto emsg = boost::format("addr get len %1%, cmd %2%")%len %buf[1];
 				throw_err_msg(emsg.str());
@@ -279,6 +281,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 			bool block = mngr->check_host_gfw(host);
 
 			if (block) {
+                BOOST_LOG_TRIVIAL(info) << "blocked, use ssl";
 				// send start cmd to ssl
 				auto buffer = std::make_shared<relay_data>(_owner->session(), relay_data::START_TCP);
 				std::copy_n(data, len -3, (uint8_t*)buffer->data_buffer().data());
@@ -287,6 +290,7 @@ void raw_tcp::tcp_impl::impl_start_local()
                 mngr->send_data(buffer);
                 impl_start_read();
 			} else {
+                BOOST_LOG_TRIVIAL(info) << "not blocked, use local";
 				auto re_hosts = _host_resolve.async_resolve(host, port, yield);
 				asio::async_connect(_sock_remote, re_hosts, yield);
 				impl_local_relay(true);

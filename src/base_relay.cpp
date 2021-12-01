@@ -24,6 +24,7 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){
         _impl->_bufs.push(buf);
+        BOOST_LOG_TRIVIAL(info) << "relay add buffer : " << _impl->_bufs.size();
         if (_impl->_bufs.size() == 1)
             _impl->_timer.expires_after(std::chrono::seconds(0));
     });
@@ -37,8 +38,9 @@ void base_relay::start_send()
                 boost::system::error_code ec;
                 _impl->_timer.async_wait(yield[ec]);
                 if (ec != asio::error::operation_aborted) {
-                    internal_stop_relay();
-                    return;
+                    BOOST_LOG_TRIVIAL(error) << "relay send timeout: ";
+                    // internal_stop_relay();
+                    // return;
                 }
                 while (!_impl->_bufs.empty()) {
                     auto buf = _impl->_bufs.front();

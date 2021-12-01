@@ -46,6 +46,7 @@ int server_start(const relay_config &config)
 	relay_server server(io, config);
 	server.start_server();
 
+	BOOST_LOG_TRIVIAL(info) << "main  start thread";
 	std::vector<std::thread> server_th;
 	for (int i = 1; i < config.thread_num; i++) {
 		server_th.emplace_back([&](){ server.server_run();});
