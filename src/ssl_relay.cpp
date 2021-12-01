@@ -2,6 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/read.hpp>
 #include <random>
 //#include <boost/asio/yield.hpp>
 #include <sstream>
@@ -73,7 +74,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 					throw_err_msg(emsg.str());
 				}
 				if (buf->data_size() != 0) { // read data
-					len = async_read(_sock, buf->data_buffer(), yield);
+					len = asio::async_read(_sock, buf->data_buffer(), yield);
 					if (len != buf->data_size()) {
 						auto emsg = format(" read len: %1%, expect %2%") % len % buf->size();
                         throw_err_msg(emsg.str());

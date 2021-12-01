@@ -1,8 +1,7 @@
 #ifndef _SSL_SOCKS_RELAY_DATA_HPP
 #define _SSL_SOCKS_RELAY_DATA_HPP
 
-#include <cstdint>
-#include <boost/asio.hpp>
+#include <boost/asio/buffer.hpp>
 namespace asio = boost::asio;
 
 const int READ_BUFFER_SIZE = 4096;

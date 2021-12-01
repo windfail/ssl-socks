@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <boost/format.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/connect.hpp>
 #include "raw_tcp.hpp"
 #include "ssl_relay.hpp"
 std::string buf_to_string(void *buf, std::size_t size)

@@ -12,11 +12,11 @@ SET(CMAKE_BUILD_TYPE "Release")
 # Create a sources variable with a link to all cpp files to compile
 set(SOURCES
   src/util.c
+  src/base_relay.cpp
     src/ssl_relay.cpp
     src/raw_relay.cpp
     src/relay_server.cpp
     src/raw_tcp.cpp
-    #    src/server.cpp
     src/gfwlist.cpp
     src/main.cpp
 )

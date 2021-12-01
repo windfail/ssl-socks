@@ -1,10 +1,10 @@
-#ifndef _GROXY_RELAY_SERVER_HPP
-#define _GROXY_RELAY_SERVER_HPP
+#ifndef _SSL_SOCKS_RELAY_SERVER_HPP
+#define _SSL_SOCKS_RELAY_SERVER_HPP
+
+#include <boost/asio/io_context.hpp>
 #include "relay.hpp"
-#include "base_relay.hpp"
 
 class relay_server
-    :public base_relay
 {
 public:
 	explicit relay_server(asio::io_context &io, const relay_config &config);
@@ -16,16 +16,14 @@ public:
 
 	void start_server();
 
-    void start_relay();
+    void server_run();
 
 private:
     struct server_impl;
     std::unique_ptr<server_impl> _impl;
 
-	void start_timer();
+	// void start_timer();
 
-    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
-    void internal_stop_relay()=0;
 };
 
 #endif

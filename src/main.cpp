@@ -4,15 +4,14 @@
 #include <fstream>
 #include <tuple>
 
-#include <boost/asio.hpp>
 #include <memory>
 #include <vector>
 #include <thread>
-//#include "relay.hpp"
-#include <boost/log/core.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/utility/setup/file.hpp>
-#include <boost/log/utility/setup/common_attributes.hpp>
+#include "relay.hpp"
+// #include <boost/log/core.hpp>
+// #include <boost/log/trivial.hpp>
+// #include <boost/log/utility/setup/file.hpp>
+// #include <boost/log/utility/setup/common_attributes.hpp>
 
 #include "relay_server.hpp"
 
@@ -49,9 +48,9 @@ int server_start(const relay_config &config)
 
 	std::vector<std::thread> server_th;
 	for (int i = 1; i < config.thread_num; i++) {
-		server_th.emplace_back([&](){ server.start_relay();});
+		server_th.emplace_back([&](){ server.server_run();});
 	}
-	server.start_relay();
+	server.server_run();
 
 	return 0;
 
