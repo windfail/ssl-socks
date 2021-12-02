@@ -8,7 +8,7 @@ class raw_tcp
 	:public raw_relay
 {
 public:
-	raw_tcp(asio::io_context &io, server_type type, const tcp::endpoint &remote=tcp::endpoint());
+	raw_tcp(asio::io_context &io, server_type type, const std::string &host="", const std::string &service="");
 	~raw_tcp();
 	// void local_start();
 	// void transparent_start();
@@ -23,6 +23,7 @@ private:
     void internal_stop_relay();
 
 	void local_relay(bool dir);
+    void internal_log(boost::system::system_error&error, const std::string &desc);
 
 };
 

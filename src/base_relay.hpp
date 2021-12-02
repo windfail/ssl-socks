@@ -27,14 +27,15 @@ public:
 
     virtual void start_relay() = 0;
 protected:
-    virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
-    virtual void internal_stop_relay() = 0;
     void refresh_timer(int timeout);
 private:
     struct base_impl;
     std::unique_ptr<base_impl> _impl;
     asio::strand<asio::io_context::executor_type> _strand;
 
+    virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
+    virtual void internal_stop_relay() = 0;
+    virtual void internal_log(boost::system::system_error&error, const std::string &desc);
 };
 
 #endif

@@ -17,7 +17,7 @@ public:
     ~ssl_relay();
 
     ssl_socket & get_sock();
-    void add_raw_tcp(const std::shared_ptr<raw_tcp> &relay, uint32_t session = 0, const tcp::endpoint &remote=tcp::endpoint());
+    void add_raw_tcp(const std::shared_ptr<raw_tcp> &relay, uint32_t session = 0, const std::string &host = "", const std::string &service="");
 
     // raw relay call ssl to stop raw, send to peer too
 	void ssl_stop_raw_relay(uint32_t session);
@@ -31,6 +31,8 @@ private:
     std::unique_ptr<ssl_impl> _impl;
     std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield);
     void internal_stop_relay();
+    void internal_log(boost::system::system_error&error, const std::string &desc);
+
 };
 
 #endif

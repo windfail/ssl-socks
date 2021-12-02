@@ -56,4 +56,6 @@ inline void throw_err_msg(const std::string &msg)
 	throw(boost::system::system_error(boost::system::error_code(), msg));
 }
 
+std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len);
+
 #endif

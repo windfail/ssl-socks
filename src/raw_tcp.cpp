@@ -19,7 +19,7 @@ std::string buf_to_string(void *buf, std::size_t size)
 	}
 	return out.str();
 }
-static std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len)
+std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len)
 {
 	std::string host;
 	std::string port_name;
@@ -63,15 +63,14 @@ static std::pair<std::string, std::string> parse_address(uint8_t *data, std::siz
 
 struct raw_tcp::tcp_impl
 {
-    explicit tcp_impl(raw_tcp *owner, asio::io_context &io, server_type type, const tcp::endpoint &remote) :
-        _owner(owner), _sock(io), _type(type), _host_resolve(io), _remote(remote), _sock_remote(io)
+    explicit tcp_impl(raw_tcp *owner, asio::io_context &io, server_type type) :
+        _owner(owner), _sock(io), _type(type), _host_resolve(io), _sock_remote(io)
     {}
 
     raw_tcp *_owner;
 	tcp::socket _sock;
     server_type _type;
 	tcp::resolver _host_resolve;
-    tcp::endpoint _remote;
 	tcp::socket _sock_remote;
 	std::string local_buf;
 	std::string remote_buf;
@@ -105,8 +104,8 @@ void raw_tcp::tcp_impl::impl_start_read()
 	});
 }
 
-raw_tcp::raw_tcp(asio::io_context &io, server_type type, const tcp::endpoint &remote) :
-    raw_relay(io), _impl(std::make_unique<tcp_impl> (this, io, type, remote))
+raw_tcp::raw_tcp(asio::io_context &io, server_type type, const std::string &host, const std::string &service) :
+    raw_relay(io, host, service), _impl(std::make_unique<tcp_impl> (this, io, type))
 {
     BOOST_LOG_TRIVIAL(debug) << "raw tcp construct: ";
 }
@@ -141,13 +140,14 @@ void raw_tcp::internal_stop_relay()
 
 std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
 {
-    auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
-    if (len != buf->size()) {
-        auto emsg = boost::format("tcp relay len %1%, data size %2%")%len % buf->size();
-        throw_err_msg(emsg.str());
-    }
-    BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
-    return len;
+    return async_write(_impl->_sock, buf->data_buffer(), yield);
+    // auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
+    // if (len != buf->size()) {
+    //     auto emsg = boost::format("tcp relay len %1%, data size %2%")%len % buf->size();
+    //     throw_err_msg(emsg.str());
+    // }
+    // BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
+    // return len;
 }
 
 
@@ -181,7 +181,7 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 				}
 			}
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "local relay error: "<<error.what();
+            _owner->internal_log(error, "local relay:");
             _owner->internal_stop_relay();
 		}
 	});
@@ -243,7 +243,7 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         impl_start_read();
         _owner->start_send();
     } catch (boost::system::system_error& error) {
-        BOOST_LOG_TRIVIAL(error) << "local start error: "<<error.what();
+        _owner->internal_log(error, "tproxy start:");
         _owner->internal_stop_relay();
     }
 }
@@ -300,7 +300,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 			async_write(_sock, asio::buffer(buf), yield);
 
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "local start error: "<<error.what();
+            _owner->internal_log(error, "local start:");
             _owner->internal_stop_relay();
 		}
 	});
@@ -313,8 +313,8 @@ void raw_tcp::tcp_impl::impl_start_remote()
 		try {
 			// auto data = (uint8_t*) buf->data_buffer().data();
 			// auto len = buf->data_size();
-			// auto[host, port] = parse_address(data, len);
-			auto re_hosts = _host_resolve.async_resolve(_remote, yield);
+			auto[host, port] = _owner->remote();
+			auto re_hosts = _host_resolve.async_resolve(host, port, yield);
 			asio::async_connect(_sock, re_hosts, yield);
 
             _owner->start_send();
@@ -322,7 +322,7 @@ void raw_tcp::tcp_impl::impl_start_remote()
 			impl_start_read();
 
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "start remote error: "<<error.what();
+            _owner->internal_log(error, "start remote :");
             _owner->internal_stop_relay();
 		}
 	});
@@ -335,4 +335,8 @@ void raw_tcp::start_relay()
         [this]() {_impl->impl_start_transparent();},
     };
     run_relay[_impl->_type]();
+}
+void raw_tcp::internal_log(boost::system::system_error&error, const std::string &desc)
+{
+    BOOST_LOG_TRIVIAL(error) << "raw_tcp "<<desc<<error.what();
 }

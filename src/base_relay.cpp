@@ -1,4 +1,5 @@
 #include <queue>
+#include <boost/format.hpp>
 #include "base_relay.hpp"
 #include "relay.hpp"
 
@@ -42,16 +43,24 @@ void base_relay::start_send()
                 while (!_impl->_bufs.empty()) {
                     auto buf = _impl->_bufs.front();
                     // internal send shoud check len and throw error
-                    internal_send_data(buf, yield);
+                    auto len = internal_send_data(buf, yield);
+                    if (len != buf->size()) {
+                        auto emsg = boost::format("send len %1%, data size %2%")%len % buf->size();
+                        throw_err_msg(emsg.str());
+                    }
                     _impl->_bufs.pop();
                 }
                 refresh_timer(TIMEOUT);
             }
         } catch (boost::system::system_error& error) {
-            BOOST_LOG_TRIVIAL(error) << " relay error: "<<error.what();
+            internal_log(error, "send data:");
             internal_stop_relay();
         }
     });
+}
+void base_relay::internal_log(boost::system::system_error&error, const std::string &desc)
+{
+    BOOST_LOG_TRIVIAL(error) <<"base_relay "<< desc<<error.what();
 }
 void base_relay::refresh_timer(int timeout)
 {

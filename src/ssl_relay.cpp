@@ -84,7 +84,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 				impl_do_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "ssl connect error: "<<error.what();
+            _owner->internal_log(error, "read:");
             _owner->internal_stop_relay();
 		}
     });
@@ -114,7 +114,10 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         if (relay != nullptr) {
             relay->stop_raw_relay();
         }
-        _owner->add_raw_tcp(nullptr, session);
+        auto data = (uint8_t*) buf->data_buffer().data();
+        auto len = buf->data_size();
+        auto[host, port] = parse_address(data, len);
+        _owner->add_raw_tcp(nullptr, session, host, port);
     } else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
         if (relay != nullptr)
             relay->stop_raw_relay();
@@ -134,13 +137,13 @@ ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
 }
 std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
 {
-    auto len = async_write(_impl->_sock, buf->buffers(), yield);
-    if (len != buf->size()) {
-        auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
-        throw_err_msg(emsg.str());
-    }
-    BOOST_LOG_TRIVIAL(info) << "ssl send ok, "<<len;
-    return len;
+    return async_write(_impl->_sock, buf->buffers(), yield);
+    // if (len != buf->size()) {
+    //     auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
+    //     throw_err_msg(emsg.str());
+    // }
+    // BOOST_LOG_TRIVIAL(info) << "ssl send ok, "<<len;
+    // return len;
 }
 
 void ssl_relay::start_relay()
@@ -159,7 +162,7 @@ void ssl_relay::start_relay()
 			// start ssl read routine
             _impl->impl_start_read();
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "ssl connect error: "<<error.what();
+            internal_log(error, "connect:");
             internal_stop_relay();
 		}
 	});
@@ -187,10 +190,10 @@ void ssl_relay::internal_stop_relay()
 // add raw_tcp:
 // in local server: relay_server create and connect on raw_tcp, call with sess=0, ssl_relay create new session
 // in remote server: ssl_relay get TCP_CONNECT cmd with session, create new raw_tcp with session
-void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t sess, const tcp::endpoint &remote)
+void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t sess, const std::string &host, const std::string &service)
 {
     auto self(shared_from_this());
-    run_in_strand([this, self, tcp_relay, sess, remote]() {
+    run_in_strand([this, self, tcp_relay, sess, host, service]() {
         auto relay = tcp_relay;
         auto session = sess;
         if (session == 0) { // create session from relay_server
@@ -201,7 +204,7 @@ void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t 
 //		BOOST_LOG_TRIVIAL(info) << " raw relay construct new session: "<<session;
             } while ( _impl->_relays.count(session) );
         } else { // create relay from ssl relay==nullptr
-            relay = std::make_shared<raw_tcp> (_impl->_io_context, _impl->_type, remote);
+            relay = std::make_shared<raw_tcp> (_impl->_io_context, _impl->_type, host, service);
         }
         relay->session(session);
         relay->manager(std::static_pointer_cast<ssl_relay>(self));
@@ -260,4 +263,8 @@ bool ssl_relay::check_host_gfw(const std::string &host)
 ssl_socket & ssl_relay::get_sock()
 {
     return _impl->_sock;
+}
+void ssl_relay::internal_log(boost::system::system_error&error, const std::string &desc)
+{
+    BOOST_LOG_TRIVIAL(error) << "ssl_relay "<<desc<<error.what();
 }
