@@ -24,9 +24,10 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){
         _impl->_bufs.push(buf);
-        BOOST_LOG_TRIVIAL(info) << "relay add buffer : " << _impl->_bufs.size();
-        if (_impl->_bufs.size() == 1)
-            _impl->_timer.expires_after(std::chrono::seconds(0));
+        // internal_log("relay add buffer ");
+        // BOOST_LOG_TRIVIAL(info) << "relay add buffer : " << _impl->_bufs.size();
+        // if (_impl->_bufs.size() == 1)
+        _impl->_timer.cancel();
     });
 }
 void base_relay::start_send()
@@ -35,36 +36,37 @@ void base_relay::start_send()
     spawn_in_strand([this, self](asio::yield_context yield){
         try {
             while (true) {
-                boost::system::error_code ec;
-                _impl->_timer.async_wait(yield[ec]);
-                if (ec != asio::error::operation_aborted) {
-                    BOOST_LOG_TRIVIAL(error) << "relay send timeout: ";
-                    // internal_stop_relay();
-                    // return;
-                }
                 while (!_impl->_bufs.empty()) {
                     auto buf = _impl->_bufs.front();
                     // internal send shoud check len and throw error
-                    auto len = internal_send_data(buf, yield);
-                    if (len != buf->size()) {
-                        auto emsg = boost::format("send len %1%, data size %2%")%len % buf->size();
-                        throw_err_msg(emsg.str());
-                    }
+                    internal_send_data(buf, yield);
                     _impl->_bufs.pop();
                 }
-                refresh_timer(TIMEOUT);
+                _impl->_timer.expires_after(std::chrono::seconds(TIMEOUT));
+                // refresh_timer(TIMEOUT);
+                try{
+                    _impl->_timer.async_wait(yield);
+                    // timeout
+                    internal_log("relay send timeout:");
+                    // BOOST_LOG_TRIVIAL(info) << "buffer num: "<<_impl->_bufs.size();
+                    internal_stop_relay();
+                    return;
+                } catch (boost::system::system_error& error) {
+                    // internal_log("wait cancel:", error);
+                }
             }
         } catch (boost::system::system_error& error) {
-            internal_log(error, "send data:");
+            internal_log("send data:", error);
             internal_stop_relay();
         }
     });
 }
-void base_relay::internal_log(boost::system::system_error&error, const std::string &desc)
+void base_relay::internal_log(const std::string &desc, const boost::system::system_error &error)
 {
     BOOST_LOG_TRIVIAL(error) <<"base_relay "<< desc<<error.what();
 }
-void base_relay::refresh_timer(int timeout)
+void base_relay::timeout_cancel()
 {
-    _impl->_timer.expires_after(std::chrono::seconds(timeout));
+    _impl->_timer.cancel();
+    // _impl->_timer.expires_after(std::chrono::seconds(timeout));
 }

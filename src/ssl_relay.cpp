@@ -65,7 +65,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 			while (true) {
 				auto buf = std::make_shared<relay_data>(0);
 				auto len = _sock.async_read_some(buf->header_buffer(), yield);
-				BOOST_LOG_TRIVIAL(info) << "ssl read session "<<buf->session()<<" cmd"<<buf->cmd();
+				// BOOST_LOG_TRIVIAL(info) << "ssl read session "<<buf->session()<<" cmd"<<buf->cmd();
 				if (len != buf->header_buffer().size()
 				    || buf->head()._len > READ_BUFFER_SIZE) {
 					auto emsg = format(
@@ -80,11 +80,11 @@ void ssl_relay::ssl_impl::impl_start_read()
                         throw_err_msg(emsg.str());
 					}
 				}
-                _owner->refresh_timer(TIMEOUT);
+                _owner->timeout_cancel();
 				impl_do_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
-            _owner->internal_log(error, "read:");
+            _owner->internal_log("read:", error);
             _owner->internal_stop_relay();
 		}
     });
@@ -137,13 +137,13 @@ ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
 }
 std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
 {
-    return async_write(_impl->_sock, buf->buffers(), yield);
-    // if (len != buf->size()) {
-    //     auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
-    //     throw_err_msg(emsg.str());
-    // }
+    auto len = async_write(_impl->_sock, buf->buffers(), yield);
+    if (len != buf->size()) {
+        auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
+        throw_err_msg(emsg.str());
+    }
     // BOOST_LOG_TRIVIAL(info) << "ssl send ok, "<<len;
-    // return len;
+    return len;
 }
 
 void ssl_relay::start_relay()
@@ -161,8 +161,9 @@ void ssl_relay::start_relay()
             start_send();
 			// start ssl read routine
             _impl->impl_start_read();
+            BOOST_LOG_TRIVIAL(info) << "ssl relay started";
 		} catch (boost::system::system_error& error) {
-            internal_log(error, "connect:");
+            internal_log("connect:", error);
             internal_stop_relay();
 		}
 	});
@@ -264,7 +265,7 @@ ssl_socket & ssl_relay::get_sock()
 {
     return _impl->_sock;
 }
-void ssl_relay::internal_log(boost::system::system_error&error, const std::string &desc)
+void ssl_relay::internal_log(const std::string &desc, const boost::system::system_error&error)
 {
     BOOST_LOG_TRIVIAL(error) << "ssl_relay "<<desc<<error.what();
 }

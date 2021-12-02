@@ -23,7 +23,7 @@ private:
     void internal_stop_relay();
 
 	void local_relay(bool dir);
-    void internal_log(boost::system::system_error&error, const std::string &desc);
+    void internal_log(const std::string &desc, const boost::system::system_error &error=system_error(error_code()));
 
 };
 

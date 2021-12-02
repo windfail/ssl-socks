@@ -5,6 +5,9 @@
 #include <boost/asio/spawn.hpp>
 #include "relay_data.hpp"
 
+using boost::system::system_error;
+using boost::system::error_code;
+
 class base_relay
     : public std::enable_shared_from_this<base_relay>
 {
@@ -27,7 +30,7 @@ public:
 
     virtual void start_relay() = 0;
 protected:
-    void refresh_timer(int timeout);
+    void timeout_cancel();
 private:
     struct base_impl;
     std::unique_ptr<base_impl> _impl;
@@ -35,7 +38,7 @@ private:
 
     virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
     virtual void internal_stop_relay() = 0;
-    virtual void internal_log(boost::system::system_error&error, const std::string &desc);
+    virtual void internal_log(const std::string &desc, const system_error&error=system_error(error_code()));
 };
 
 #endif
