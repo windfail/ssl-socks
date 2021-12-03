@@ -1,20 +1,23 @@
 #include <queue>
 #include <boost/format.hpp>
 #include "base_relay.hpp"
-#include "relay.hpp"
 
 struct base_relay::base_impl
 {
-    explicit base_impl(asio::io_context &io):
+    explicit base_impl(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
+        _host(host), _service(service), _type(type),
         _timer(io, std::chrono::seconds(TIMEOUT))
     {}
+    std::string _host;
+    std::string _service;
+    server_type _type;
 
     asio::steady_timer _timer;
     std::queue<std::shared_ptr<relay_data>> _bufs;
 };
 
-base_relay::base_relay(asio::io_context &io):
-    _impl(std::make_unique<base_impl>(io)), _strand(io.get_executor())
+base_relay::base_relay(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
+    _impl(std::make_unique<base_impl>(io, type, host, service)), _strand(io.get_executor())
 {
 }
 base_relay::~base_relay() = default;
@@ -69,4 +72,13 @@ void base_relay::timeout_cancel()
 {
     _impl->_timer.cancel();
     // _impl->_timer.expires_after(std::chrono::seconds(timeout));
+}
+std::pair<std::string, std::string> base_relay::remote()
+{
+    return {_impl->_host, _impl->_service};
+}
+
+server_type base_relay::type()
+{
+    return _impl->_type;
 }

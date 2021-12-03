@@ -6,19 +6,21 @@
 
 // raw udp, for client to local server and remote server to dest
 class raw_udp
-    :public raw_relay, std::enable_shared_from_this<raw_udp>
+    :public raw_relay
 {
 public:
-    raw_udp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager);
-    raw_udp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session, const udp::endpoint &remote);
+    raw_udp(asio::io_context &io, server_type type, const std::string &host="", const std::string &service="");
     ~raw_udp();
-    void stop_this_relay();
-    void start_raw_send(std::shared_ptr<relay_data> buf);
-    void start_remote_relay();
+    void start_relay();
+
+    void stop_raw_relay();
 private:
     struct udp_impl;
     std::unique_ptr<udp_impl> _impl ;
 
-
+    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield);
+    void internal_stop_relay();
+    // void local_relay(bool dir);
+    void internal_log(boost::system::system_error&error, const std::string &desc);
 };
 #endif

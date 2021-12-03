@@ -13,16 +13,12 @@ public:
     void local_udp_server_start();
 	void local_tcp_server_start();
 	void remote_server_start();
-
 	void start_server();
 
     void server_run();
-
 private:
     struct server_impl;
     std::unique_ptr<server_impl> _impl;
-
-	// void start_timer();
 
 };
 

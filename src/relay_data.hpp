@@ -12,16 +12,10 @@ public:
     enum command {
         STOP_RELAY,
         START_TCP,
-        START_UDP,
+        DATA_UDP,
         DATA_RELAY,
         KEEP_RELAY
     };
-    enum stop_src {
-        from_ssl,
-        from_raw,
-        ssl_err
-    };
-
     struct _header_t {
         uint32_t _session;
         command _cmd;
@@ -60,11 +54,14 @@ public:
         //return asio::buffer(&_data[sizeof(_header_t)], _header._len);
         return asio::buffer(_data, _header._len);
     }
-    auto buffers() {
-        //return asio::buffer(&_header, sizeof(_header_t)+_header._len);
-        return std::array<asio::mutable_buffer, 2> { header_buffer(), data_buffer() };
-//asio::buffer(&_header, sizeof(_header_t)), asio::buffer(_data)} ;
+    auto udp_data_buffer()
+    {
+        return asio::buffer(_data+19, _header._len-19);
     }
+    auto buffers() {
+        return std::array<asio::mutable_buffer, 2> { header_buffer(), data_buffer() };
+    }
+
     void resize(std::size_t data_len) {
         _header._len = data_len;
 //		_data.resize(data_len);

@@ -4,6 +4,7 @@
 #include <memory>
 #include <boost/asio/spawn.hpp>
 #include "relay_data.hpp"
+#include "relay.hpp"
 
 using boost::system::system_error;
 using boost::system::error_code;
@@ -12,7 +13,7 @@ class base_relay
     : public std::enable_shared_from_this<base_relay>
 {
 public:
-    explicit base_relay(asio::io_context &io);
+    base_relay(asio::io_context &io, server_type type, const std::string &host, const std::string &service);
     virtual ~base_relay();
     // use dispatch to run in own strand
     template<typename T> void run_in_strand(T &&func)
@@ -31,6 +32,8 @@ public:
     virtual void start_relay() = 0;
 protected:
     void timeout_cancel();
+    std::pair<std::string, std::string> remote();
+    server_type type();
 private:
     struct base_impl;
     std::unique_ptr<base_impl> _impl;

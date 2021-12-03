@@ -8,7 +8,7 @@ class raw_relay
     :public base_relay
 {
 public:
-    raw_relay(asio::io_context &io, const std::string &host, const std::string &service);
+    raw_relay(asio::io_context &io, server_type type, const std::string &host, const std::string &service);
     // raw_relay(asio::io_context &io, std::shared_ptr<ssl_relay> manager=nullptr, uint32_t session = 0);
     virtual ~raw_relay();
 
@@ -19,8 +19,6 @@ public:
 
     // ssl relay call to stop raw relay
     virtual void stop_raw_relay() = 0;
-protected:
-    std::pair<std::string, std::string> remote();
 private:
     struct raw_impl;
     std::unique_ptr<raw_impl> _impl;

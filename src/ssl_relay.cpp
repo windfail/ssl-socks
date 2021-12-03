@@ -3,7 +3,8 @@
 #include <unordered_map>
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/read.hpp>
-#include <random>
+#include <boost/asio/connect.hpp>
+// #include <random>
 //#include <boost/asio/yield.hpp>
 #include <sstream>
 #include <boost/format.hpp>
@@ -24,30 +25,31 @@ struct ssl_relay::ssl_impl
 		_io_context(io),
          _ctx(init_ssl(config)),
 		_sock(io, _ctx),
-		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),
-		_rand(std::random_device()()),
-        _type(config.type),
+        _host_resolver(io),
+		// _remote(asio::ip::make_address(config.remote_ip), config.remote_port),
+		// _rand(std::random_device()()),
+        // _type(config.type),
         _gfw(config.gfw_file)
     {}
     ~ssl_impl() = default;
 
     ssl_relay *_owner;
 	asio::io_context &_io_context;
-
 	ssl::context _ctx;
 	ssl_socket _sock;
-
+	tcp::resolver _host_resolver;
     // _relays
 	std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _relays;
     // default relay used for local udp relay
     std::shared_ptr<raw_relay> default_relay;
 
-	tcp::endpoint _remote;	// remote ssl relay ep
+	// tcp::endpoint _remote;	// remote ssl relay ep
 	// random
-	std::minstd_rand _rand;
+	// std::minstd_rand _rand;
 	// relay_config _config;
-    server_type _type;
+    // server_type _type;
 	gfw_list _gfw;
+    uint32_t _session = 1;
 
 	int _timeout_rd = TIMEOUT;
 	int _timeout_wr = TIMEOUT;
@@ -76,7 +78,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 				if (buf->data_size() != 0) { // read data
 					len = asio::async_read(_sock, buf->data_buffer(), yield);
 					if (len != buf->data_size()) {
-						auto emsg = format(" read len: %1%, expect %2%") % len % buf->size();
+						auto emsg = format(" read len: %1%, expect %2%") % len % buf->data_size();
                         throw_err_msg(emsg.str());
 					}
 				}
@@ -109,7 +111,7 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         } else {
             relay->send_data(buf);
         }
-    } else if (buf->cmd() == relay_data::START_UDP) { // remote get start udp
+    } else if (buf->cmd() == relay_data::DATA_UDP) { // remote get start udp
     } else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
         if (relay != nullptr) {
             relay->stop_raw_relay();
@@ -130,8 +132,9 @@ ssl_relay::~ssl_relay()
     BOOST_LOG_TRIVIAL(info) << "ssl relay destruct";
 }
 
+		// _remote(asio::ip::make_address(config.remote_ip), config.remote_port),
 ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
-    base_relay(io), _impl(std::make_unique<ssl_impl>(this, io, config))
+    base_relay(io, config.type, config.remote_ip, config.remote_port), _impl(std::make_unique<ssl_impl>(this, io, config))
 {
     BOOST_LOG_TRIVIAL(info) << "ssl relay construct";
 }
@@ -151,12 +154,14 @@ void ssl_relay::start_relay()
     auto self(shared_from_this());
 	spawn_in_strand([this, self](asio::yield_context yield) {
 		try {
-			if (_impl->_type != REMOTE_SERVER) {
-				_impl->_sock.lowest_layer().async_connect(_impl->_remote, yield);
+			if (type() != REMOTE_SERVER) {
+                auto[host, port] = remote();
+				auto re_hosts = _impl->_host_resolver.async_resolve(host, port, yield);
+                asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
 			_impl->_sock.async_handshake(
-				_impl->_type == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
+				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
             start_send();
 			// start ssl read routine
@@ -181,8 +186,7 @@ void ssl_relay::internal_stop_relay()
             _impl->_relays.clear();
             // close sock
             _impl->_sock.async_shutdown(yield);
-            _impl->_sock.lowest_layer()
-                .close();
+            _impl->_sock.lowest_layer() .close();
 		} catch (boost::system::system_error& error) {
         }
     });
@@ -198,14 +202,20 @@ void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t 
         auto relay = tcp_relay;
         auto session = sess;
         if (session == 0) { // create session from relay_server
-            do {
-                auto ran = _impl->_rand();
-                auto tmp = time(nullptr);
-                session = (ran & 0xffff0000) | (tmp & 0xffff);
-//		BOOST_LOG_TRIVIAL(info) << " raw relay construct new session: "<<session;
-            } while ( _impl->_relays.count(session) );
+            session = _impl->_session++;
+            if (_impl->_relays.count(session)) {
+                BOOST_LOG_TRIVIAL(error) << "ssl relay session repeat: "<<session;
+                internal_stop_relay();
+                return;
+            }
+//             do {
+//                 auto ran = _impl->_rand();
+//                 auto tmp = time(nullptr);
+//                 session = (ran & 0xffff0000) | (tmp & 0xffff);
+// //		BOOST_LOG_TRIVIAL(info) << " raw relay construct new session: "<<session;
+//             } while ( _impl->_relays.count(session) );
         } else { // create relay from ssl relay==nullptr
-            relay = std::make_shared<raw_tcp> (_impl->_io_context, _impl->_type, host, service);
+            relay = std::make_shared<raw_tcp> (_impl->_io_context, type(), host, service);
         }
         relay->session(session);
         relay->manager(std::static_pointer_cast<ssl_relay>(self));
