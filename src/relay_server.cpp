@@ -9,8 +9,7 @@ struct relay_server::server_impl
     server_impl(asio::io_context &io, const relay_config &config):
         _config(config), _io(io),
 		_acceptor(io, tcp::v4()),
-        _strand(io.get_executor()),
-		_remote(asio::ip::make_address(config.remote_ip), config.remote_port),_timer(io)
+        _strand(io.get_executor())
     {
         try {
             _acceptor.set_option(tcp::acceptor::reuse_address(true));
@@ -28,30 +27,22 @@ struct relay_server::server_impl
     void impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp);
 
 	relay_config _config;
-
 	asio::io_context &_io;
 	tcp::acceptor _acceptor;
 	asio::strand<asio::io_context::executor_type> _strand;
 
-    // for tcp listen and accept
-	tcp::endpoint _remote;
-	asio::steady_timer _timer;
-
-	std::list<std::weak_ptr<ssl_relay>> _ssl_relays;
-	std::list<std::weak_ptr<ssl_relay>> _ssl_udp_relays;
+	std::weak_ptr<ssl_relay> _ssl_tcp;
+	std::weak_ptr<ssl_relay> _ssl_udp;
 };
 
 // add new tcp relay to ssl relay
 // if no ssl relay, start new ssl connection
 void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp)
 {
-    std::shared_ptr<ssl_relay> ssl_ptr = nullptr;
-    if (!_ssl_relays.empty()) {
-        ssl_ptr = _ssl_relays.front().lock();
-    }
+    auto ssl_ptr = _ssl_tcp.lock();
     if (ssl_ptr == nullptr) {
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
-        _ssl_relays.push_back(ssl_ptr);
+        // _ssl_relays.push_back(ssl_ptr);
         // init and connect to remote
         ssl_ptr->start_relay();
     }
@@ -109,8 +100,7 @@ void relay_server::remote_server_start()
 				auto ssl_ptr = std::make_shared<ssl_relay> (_impl->_io, _impl->_config);
 				_impl->_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
                 ssl_ptr->start_relay();
-				_impl->_ssl_relays.emplace_back(ssl_ptr);
-
+				// _impl->_ssl_relays.emplace_back(ssl_ptr);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
 			}
@@ -126,8 +116,6 @@ void relay_server::start_server()
 		local_tcp_server_start();
         // local_udp_server_start();
 	}
-	// start_timer();
-
 }
 void relay_server::server_run()
 {
@@ -140,23 +128,3 @@ void relay_server::server_run()
 	}
 }
 
-// void relay_server::start_timer()
-// {
-//     spawn_in_strand([this](asio::yield_context yield) {
-// 		while (true) {
-// 			_impl->_timer.expires_after(std::chrono::seconds(RELAY_TICK));
-// 			_impl->_timer.async_wait(yield);
-
-//             auto &relays = _impl->_ssl_relays;
-// 			for (auto relay = relays.begin(); relay != relays.end();) {
-// 				if (auto ssl_relay = relay->lock()) {
-// 					ssl_relay->timer_handle();
-// 					relay++;
-// 				} else {
-// 					BOOST_LOG_TRIVIAL(info) << " main timer erase ";
-// 					relay = relays.erase(relay);
-// 				}
-// 			}
-// 		}
-// 	});
-// }

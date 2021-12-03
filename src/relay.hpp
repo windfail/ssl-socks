@@ -41,7 +41,7 @@ enum server_type {
 struct relay_config
 {
 	int local_port = 10230;
-	int remote_port = 10230;
+    std::string remote_port = "10230";
 	std::string remote_ip = "";
 	int thread_num = 1;
 	server_type type = LOCAL_SERVER;

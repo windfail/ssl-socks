@@ -127,7 +127,7 @@ int main(int argc, char*argv[])
 		} else if (key == "server") {
 			config.remote_ip = value;
 		} else if (key == "server_port") {
-			config.remote_port = stoi(value);
+			config.remote_port = value;//stoi(value);
 		} else if (key == "cert") {
 			config.cert = value;
 		} else if (key == "key") {

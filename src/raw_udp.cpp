@@ -5,49 +5,87 @@
 
 struct raw_udp::udp_impl
 {
-    explicit udp_impl(asio::io_context *io):
-        _sock(*io), _host_resolve(*io), _sock_tr(*io), _w_sock(&_sock), _r_sock(&_sock), _dst(&_remote)
-    {}
-    udp_impl(asio::io_context *io, const udp::endpoint &remote):
-        _sock(*io), _host_resolve(*io), _sock_tr(*io), _remote(remote), _w_sock(&_sock), _r_sock(&_sock), _dst(&_remote)
+    explicit udp_impl(asio::io_context &io):
+        _sock(io), _host_resolver(io)
+        // _sock_tr(io), _w_sock(&_sock), _r_sock(&_sock)
     {}
 
     ~udp_impl() =default;
 
     udp::socket _sock;
-    udp::resolver _host_resolve;
-    udp::socket _sock_tr; // for transparent send
+    udp::resolver _host_resolver;
     udp::endpoint _remote;
-    udp::socket *_w_sock;
-    udp::socket *_r_sock;
-    udp::endpoint *_dst;
-
-
-    std::map<std::pair<udp::endpoint, udp::endpoint>, uint32_t> _addrs;
-    std::unordered_map<uint32_t, std::pair<udp::endpoint, udp::endpoint>*> _sess_addrs;
 
 };
 // remote raw udp
-raw_udp::raw_udp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager, uint32_t session, const udp::endpoint &remote) :
-    raw_relay(io, manager, session), _impl(std::make_unique<udp_impl>(io, remote))
+raw_udp::raw_udp(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
+    raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(io))
 {
-    BOOST_LOG_TRIVIAL(debug) << "raw udp construct in remote: " << session;
-}
-raw_udp::raw_udp(asio::io_context *io, const std::shared_ptr<ssl_relay> &manager) :
-    raw_relay(io, manager), _impl(std::make_unique<udp_impl>(io))
-{
-    BOOST_LOG_TRIVIAL(debug) << "raw udp construct in local tproxy: ";
-    _impl->_w_sock = &_impl->_sock_tr;
+    BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
 }
 
 raw_udp::~raw_udp()
 {
     BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
 }
-void raw_udp::stop_this_relay()
-{
 
+void raw_udp::stop_raw_relay()
+{
+    auto self(shared_from_this());
+    run_in_strand([this, self](){
+        // call close socket
+        BOOST_LOG_TRIVIAL(info) << "stop raw udp";
+        boost::system::error_code err;
+        _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
+        _impl->_sock.close(err);
+    });
 }
+
+void raw_udp::internal_stop_relay()
+{
+    BOOST_LOG_TRIVIAL(info) << "internal stop raw udp";
+    stop_raw_relay();
+    auto mngr = manager();
+    auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);
+    mngr->send_data(buffer);
+    mngr->ssl_stop_raw_relay(session());
+}
+static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
+{
+    if (data[0] == 1) {
+        auto dst_addr = (struct sockaddr_in*)daddr.data();
+        memcpy(&dst_addr->sin_addr, &data[1], 4);
+        memcpy(&dst_addr->sin_port, &data[5], 2);
+        dst_addr->sin_family = AF_INET;
+    } else if (data[0] == 4) {
+        auto dst_addr6 = (struct sockaddr_in6*)daddr.data();
+        memcpy(&dst_addr6->sin6_addr, &data[1], 16);
+        memcpy(&dst_addr6->sin6_port, &data[17], 2);
+        dst_addr6->sin6_family = AF_INET6;
+    }
+}
+std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
+{
+    uint8_t *data = (uint8_t*) buf->data_buffer().data();
+    udp::endpoint re_addr;
+    if (type() == LOCAL_TRANSPARENT) {
+        get_data_addr(data, re_addr);
+        // bind sock to re_addr
+    } else {
+        get_data_addr(data, _impl->_remote);
+    }
+
+    // send to _remote
+    return async_write(_impl->_sock, buf->udp_data_buffer(), yield);
+    // auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
+    // if (len != buf->size()) {
+    //     auto emsg = boost::format("tcp relay len %1%, data size %2%")%len % buf->size();
+    //     throw_err_msg(emsg.str());
+    // }
+    // BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
+    // return len;
+}
+
 void raw_udp::start_remote_relay()
 {
     auto self(shared_from_this());
