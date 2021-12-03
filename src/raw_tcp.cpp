@@ -92,7 +92,6 @@ void raw_tcp::tcp_impl::impl_start_read()
 			while (true) {
 				auto buf = std::make_shared<relay_data>(_owner->session());
 				auto len = _sock.async_read_some(buf->data_buffer(), yield);
-                _owner->timeout_cancel();
 				//	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
 				// post to manager
 				buf->resize(len);
@@ -124,6 +123,9 @@ void raw_tcp::stop_raw_relay()
 {
     auto self(shared_from_this());
     run_in_strand([this, self](){
+        if (is_stop())
+            return;
+        is_stop(true);
         // call close socket
         BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp";
         boost::system::error_code err;
@@ -134,6 +136,9 @@ void raw_tcp::stop_raw_relay()
 
 void raw_tcp::internal_stop_relay()
 {
+    if (is_stop())
+        return;
+    is_stop(true);
 	BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp";
     stop_raw_relay();
     auto mngr = manager();
@@ -175,7 +180,6 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 			while (true) {
 				buf->resize(READ_BUFFER_SIZE);
 				auto len = sock_r->async_read_some(asio::buffer(*buf), yield);
-                _owner->timeout_cancel();
 
 				buf->resize(len);
 				len = async_write(*sock_w, asio::buffer(*buf), yield);

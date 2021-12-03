@@ -14,6 +14,7 @@ struct base_relay::base_impl
 
     asio::steady_timer _timer;
     std::queue<std::shared_ptr<relay_data>> _bufs;
+    bool _is_stop = false;
 };
 
 base_relay::base_relay(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
@@ -27,10 +28,8 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){
         _impl->_bufs.push(buf);
-        // internal_log("relay add buffer ");
-        // BOOST_LOG_TRIVIAL(info) << "relay add buffer : " << _impl->_bufs.size();
-        // if (_impl->_bufs.size() == 1)
-        _impl->_timer.cancel();
+        if (_impl->_bufs.size() == 1)
+            _impl->_timer.cancel();
     });
 }
 void base_relay::start_send()
@@ -50,12 +49,10 @@ void base_relay::start_send()
                 try{
                     _impl->_timer.async_wait(yield);
                     // timeout
-                    internal_log("relay send timeout:");
-                    // BOOST_LOG_TRIVIAL(info) << "buffer num: "<<_impl->_bufs.size();
-                    internal_stop_relay();
-                    return;
                 } catch (boost::system::system_error& error) {
                     // internal_log("wait cancel:", error);
+                    if (_impl->_is_stop)
+                        return;
                 }
             }
         } catch (boost::system::system_error& error) {
@@ -68,10 +65,17 @@ void base_relay::internal_log(const std::string &desc, const boost::system::syst
 {
     BOOST_LOG_TRIVIAL(error) <<"base_relay "<< desc<<error.what();
 }
-void base_relay::timeout_cancel()
+void base_relay::stop_relay()
 {
+    _impl->_is_stop = true;
+}
+bool base_relay::is_stop(bool stop)
+{
+    if (!stop) //default is false, so param true means set, param false means get
+        return _impl->_is_stop;
+    // true means stop, cancel send wait
     _impl->_timer.cancel();
-    // _impl->_timer.expires_after(std::chrono::seconds(timeout));
+    return _impl->_is_stop = stop;
 }
 std::pair<std::string, std::string> base_relay::remote()
 {

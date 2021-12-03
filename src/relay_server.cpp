@@ -42,9 +42,11 @@ void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> 
     auto ssl_ptr = _ssl_tcp.lock();
     if (ssl_ptr == nullptr) {
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
+        _ssl_tcp = ssl_ptr;
         // _ssl_relays.push_back(ssl_ptr);
         // init and connect to remote
         ssl_ptr->start_relay();
+
     }
     ssl_ptr->add_raw_tcp(new_tcp);
 }

@@ -82,7 +82,6 @@ void ssl_relay::ssl_impl::impl_start_read()
                         throw_err_msg(emsg.str());
 					}
 				}
-                _owner->timeout_cancel();
 				impl_do_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
@@ -178,6 +177,9 @@ void ssl_relay::internal_stop_relay()
 {
     auto self(shared_from_this());
 	spawn_in_strand([this, self](asio::yield_context yield) {
+        if (is_stop())
+            return;
+        is_stop(true);
         try{
             // stop all raw relays
             for (auto && [session, relay]:_impl->_relays) {
