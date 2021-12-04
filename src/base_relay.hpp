@@ -34,7 +34,7 @@ protected:
     // void timeout_cancel();
     std::pair<std::string, std::string> remote();
     server_type type();
-    void stop_relay();
+    // void stop_relay();
     bool is_stop(bool=false);
 
 private:

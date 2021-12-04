@@ -105,8 +105,7 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         val->second;
     if ( buf->cmd() == relay_data::DATA_RELAY) {
         if (relay == nullptr) {
-            // tell remote stop
-            // impl_stop_raw_relay(session, relay_data::from_raw);
+            // tell remote stop TBD
         } else {
             relay->send_data(buf);
         }
@@ -130,13 +129,12 @@ ssl_relay::~ssl_relay()
 {
     BOOST_LOG_TRIVIAL(info) << "ssl relay destruct";
 }
-
-		// _remote(asio::ip::make_address(config.remote_ip), config.remote_port),
 ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
     base_relay(io, config.type, config.remote_ip, config.remote_port), _impl(std::make_unique<ssl_impl>(this, io, config))
 {
     BOOST_LOG_TRIVIAL(info) << "ssl relay construct";
 }
+
 std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
 {
     auto len = async_write(_impl->_sock, buf->buffers(), yield);
@@ -210,12 +208,6 @@ void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t 
                 internal_stop_relay();
                 return;
             }
-//             do {
-//                 auto ran = _impl->_rand();
-//                 auto tmp = time(nullptr);
-//                 session = (ran & 0xffff0000) | (tmp & 0xffff);
-// //		BOOST_LOG_TRIVIAL(info) << " raw relay construct new session: "<<session;
-//             } while ( _impl->_relays.count(session) );
         } else { // create relay from ssl relay==nullptr
             relay = std::make_shared<raw_tcp> (_impl->_io_context, type(), host, service);
         }

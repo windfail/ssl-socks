@@ -127,7 +127,7 @@ void raw_tcp::stop_raw_relay()
             return;
         is_stop(true);
         // call close socket
-        BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
+        // BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);
@@ -138,8 +138,7 @@ void raw_tcp::internal_stop_relay()
 {
     if (is_stop())
         return;
-    is_stop(true);
-	BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
+	// BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
     stop_raw_relay();
     auto mngr = manager();
     auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);

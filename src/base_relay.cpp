@@ -28,8 +28,11 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){
         _impl->_bufs.push(buf);
-        if (_impl->_bufs.size() == 1)
-            _impl->_timer.cancel();
+        if (_impl->_bufs.size() == 1){
+            auto cnt = _impl->_timer.cancel();
+            // auto msg =boost::format("send data cancel timer %1%")%cnt;
+            // internal_log(msg.str());
+        }
     });
 }
 void base_relay::start_send()
@@ -44,17 +47,22 @@ void base_relay::start_send()
                     internal_send_data(buf, yield);
                     _impl->_bufs.pop();
                 }
-                _impl->_timer.expires_after(std::chrono::seconds(TIMEOUT));
-                // refresh_timer(TIMEOUT);
-                try{
-                    _impl->_timer.async_wait(yield);
-                    // timeout
-                } catch (boost::system::system_error& error) {
-                    // internal_log("wait cancel:", error);
-                    // BOOST_LOG_TRIVIAL(error) <<"base_relay "<< _impl->_is_stop;
-                    if (_impl->_is_stop)
-                        return;
+                if (_impl->_is_stop) {
+                    // internal_log(" stop send");
+                    return;
                 }
+                // internal_log("send complete, start wait: ");
+                _impl->_timer.expires_after(std::chrono::seconds(TIMEOUT));
+                boost::system::error_code err;
+
+                _impl->_timer.async_wait(yield[err]);
+                // try{
+                //     _impl->_timer.async_wait(yield);
+                //     // timeout
+                // } catch (boost::system::system_error& error) {
+                //     // BOOST_LOG_TRIVIAL(error) <<"base_relay "<< _impl->_is_stop;
+                //     // internal_log(" send wait canceled ");
+                // }
             }
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
@@ -66,17 +74,21 @@ void base_relay::internal_log(const std::string &desc, const boost::system::syst
 {
     BOOST_LOG_TRIVIAL(error) <<"base_relay "<< desc<<error.what();
 }
-void base_relay::stop_relay()
-{
-    _impl->_is_stop = true;
-}
+// void base_relay::stop_relay()
+// {
+//     _impl->_is_stop = true;
+// }
 bool base_relay::is_stop(bool stop)
 {
-    if (!stop) //default is false, so param true means set, param false means get
-        return _impl->_is_stop;
-    // true means stop, cancel send wait
-    _impl->_timer.cancel();
-    return _impl->_is_stop = stop;
+    if (stop) {
+        // true means stop, cancel send wait
+        auto cnt = _impl->_timer.cancel();
+        // auto msg =boost::format("cancel timer %1%")%cnt;
+        // internal_log(msg.str());
+        return _impl->_is_stop = true;
+    }
+    //default is false, so param true means set, param false means get
+    return _impl->_is_stop;
 }
 std::pair<std::string, std::string> base_relay::remote()
 {
