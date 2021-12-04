@@ -99,7 +99,7 @@ void raw_tcp::tcp_impl::impl_start_read()
                 mngr->send_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << "raw read error: "<<error.what();
+			BOOST_LOG_TRIVIAL(error) << _owner->session()<<" raw read error: "<<error.what();
             _owner->internal_stop_relay();
 		}
 	});
@@ -127,7 +127,7 @@ void raw_tcp::stop_raw_relay()
             return;
         is_stop(true);
         // call close socket
-        BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp";
+        BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);
@@ -139,7 +139,7 @@ void raw_tcp::internal_stop_relay()
     if (is_stop())
         return;
     is_stop(true);
-	BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp";
+	BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
     stop_raw_relay();
     auto mngr = manager();
     auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);
@@ -152,7 +152,7 @@ std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
     // return async_write(_impl->_sock, buf->data_buffer(), yield);
     auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
     if (len != buf->data_size()) {
-        auto emsg = boost::format("tcp relay len %1%, data size %2%")%len % buf->size();
+        auto emsg = boost::format("tcp %d relay len %1%, data size %2%")%session()%len % buf->size();
         throw_err_msg(emsg.str());
     }
     // BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
@@ -350,5 +350,5 @@ void raw_tcp::start_relay()
 }
 void raw_tcp::internal_log(const std::string &desc, const boost::system::system_error&error)
 {
-    BOOST_LOG_TRIVIAL(error) << "raw_tcp "<<desc<<error.what();
+    BOOST_LOG_TRIVIAL(error) << "raw_tcp "<<session() << desc<<error.what();
 }

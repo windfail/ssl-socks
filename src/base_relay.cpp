@@ -51,6 +51,7 @@ void base_relay::start_send()
                     // timeout
                 } catch (boost::system::system_error& error) {
                     // internal_log("wait cancel:", error);
+                    // BOOST_LOG_TRIVIAL(error) <<"base_relay "<< _impl->_is_stop;
                     if (_impl->_is_stop)
                         return;
                 }
