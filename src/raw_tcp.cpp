@@ -90,7 +90,6 @@ void raw_tcp::tcp_impl::impl_start_read()
     _owner->spawn_in_strand([this, owner](asio::yield_context yield) {
 		try {
 			while (true) {
-                BOOST_LOG_TRIVIAL(info) << " tcp raw read: ";
 				auto buf = std::make_shared<relay_data>(_owner->session());
 				auto len = _sock.async_read_some(buf->data_buffer(), yield);
 				//	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
@@ -214,7 +213,7 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         // int ret = get_dst_addr(_sock.native_handle(), ss, len);
         // proxy for tproxy
         auto dst = _sock.local_endpoint();
-        BOOST_LOG_TRIVIAL(info) << "tproxy start tcp "<<dst  ;
+        // BOOST_LOG_TRIVIAL(info) << "tproxy start tcp "<<dst  ;
         if (dst.address().is_v4()) {
             auto dst_addr = (struct sockaddr_in*)dst.data();
             data[0] = 1;
@@ -327,7 +326,7 @@ void raw_tcp::tcp_impl::impl_start_remote()
 			auto[host, port] = _owner->remote();
 			auto re_hosts = _host_resolver.async_resolve(host, port, yield);
 			asio::async_connect(_sock, re_hosts, yield);
-            BOOST_LOG_TRIVIAL(info) << "raw_tcp connect to "<<host<<port;
+            // BOOST_LOG_TRIVIAL(info) << "raw_tcp connect to "<<host<<port;
 
             _owner->start_send();
 			// start raw data relay

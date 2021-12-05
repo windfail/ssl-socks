@@ -43,12 +43,9 @@ void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> 
     if (ssl_ptr == nullptr) {
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
         _ssl_tcp = ssl_ptr;
-        // _ssl_relays.push_back(ssl_ptr);
         // init and connect to remote
-
-        BOOST_LOG_TRIVIAL(info) << "relay_server :ssl start";
+        // BOOST_LOG_TRIVIAL(info) << "relay_server :ssl start";
         ssl_ptr->start_relay();
-
     }
     ssl_ptr->add_raw_tcp(new_tcp);
 }
@@ -87,7 +84,6 @@ void relay_server::local_tcp_server_start()
 			try {
 				auto new_relay = std::make_shared<raw_tcp> (_impl->_io, _impl->_config.type);
 				_impl->_acceptor.async_accept(new_relay->get_sock(), yield);
-				BOOST_LOG_TRIVIAL(info) << "relay server accept: ";
                 _impl->impl_add_new_tcp(new_relay);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
@@ -105,7 +101,6 @@ void relay_server::remote_server_start()
 				auto ssl_ptr = std::make_shared<ssl_relay> (_impl->_io, _impl->_config);
 				_impl->_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
                 ssl_ptr->start_relay();
-				// _impl->_ssl_relays.emplace_back(ssl_ptr);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
 			}
