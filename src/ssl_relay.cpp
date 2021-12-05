@@ -154,9 +154,11 @@ void ssl_relay::start_relay()
 			if (type() != REMOTE_SERVER) {
                 auto[host, port] = remote();
 				auto re_hosts = _impl->_host_resolver.async_resolve(host, port, yield);
+                BOOST_LOG_TRIVIAL(info) << "ssl relay connect to " << host << port;
                 asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
+
 			_impl->_sock.async_handshake(
 				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
