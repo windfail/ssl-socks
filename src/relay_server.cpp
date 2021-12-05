@@ -8,7 +8,7 @@ struct relay_server::server_impl
 {
     server_impl(asio::io_context &io, const relay_config &config):
         _config(config), _io(io),
-		_acceptor(io, tcp::v4()),
+		_acceptor(io, tcp::v6()),
         _strand(io.get_executor())
     {
         try {
@@ -16,7 +16,7 @@ struct relay_server::server_impl
             _acceptor.set_option(tcp::acceptor::keep_alive(true));
             if (config.type == LOCAL_TRANSPARENT)
                 _acceptor.set_option(_ip_transparent_t(true));
-            _acceptor.bind(tcp::endpoint(tcp::v4(), config.local_port));
+            _acceptor.bind(tcp::endpoint(tcp::v6(), config.local_port));
             _acceptor.listen();
         } catch (boost::system::system_error& error) {
             BOOST_LOG_TRIVIAL(error) << "relay server init error: "<<error.what();
