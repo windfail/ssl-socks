@@ -2,6 +2,7 @@
 #include <boost/asio/spawn.hpp>
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
+#include "relay.hpp"
 
 struct raw_udp::udp_impl
 {
@@ -29,8 +30,9 @@ void raw_udp::udp_impl::impl_start_recv()
         try {
             while (true) {
                 udp::endpoint peer;
-                auto buf = std::make_shared<relay_data>(_owner->session());
+                auto buf = std::make_shared<relay_data>();
                 auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
+                parse_addr(buf->data_buffer().data(), peer.data());
                 //	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
                 // post to manager
                 buf->resize_udp(len);

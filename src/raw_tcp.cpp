@@ -206,7 +206,7 @@ void raw_tcp::tcp_impl::impl_start_transparent()
     try {
 	// send start cmd to ssl
         auto buffer = std::make_shared<relay_data>(_owner->session(), relay_data::START_TCP);
-        auto data = (uint8_t*) buffer->data_buffer().data();
+        // auto data = (uint8_t*) buffer->data_buffer().data();
         // struct sockaddr_storage ss;
         // socklen_t len = sizeof(ss);
         // get origin dest
@@ -215,7 +215,7 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         // proxy for tproxy
         auto dst = _sock.local_endpoint();
 
-        buffer->resize(parse_endpoint(data, dst));
+        buffer->resize(parse_addr(buffer->data_buffer().data(), dst.data()));
         // BOOST_LOG_TRIVIAL(info) << "tproxy start tcp "<<dst  ;
         // int ret = getsockname(_sock.native_handle(), (struct sockaddr*)&ss, &len);
         // if (ret < 0) {

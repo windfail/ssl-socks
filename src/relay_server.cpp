@@ -67,13 +67,13 @@ relay_server::~relay_server() = default;
 // local udp server
 void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, udp::endpoint &src)
 {
-    uint8_t cmsg[128];
+    uint8_t ctrl_msg[128];
     // struct sockaddr_storage src;
     struct msghdr msg;
     msg.msg_name = src.data();
     msg.msg_namelen = src.size(),
-    msg.msg_control = cmsg;
-    msg.msg_controllen = sizeof(cmsg);
+    msg.msg_control = ctrl_msg;
+    msg.msg_controllen = sizeof(ctrl_msg);
     struct iovec iobuf = {
         buf->udp_data_buffer().data(), buf->udp_data_size()
     };
@@ -85,7 +85,7 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, 
     for (auto cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
         if ((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR)
             ||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
-            // parse_addr_to_data(buf->data_buffer().data(), CMSG_DATA(cmsg));
+            parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
         //     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         //     dstaddr->ss_family = AF_INET;
         //     return 0;
@@ -178,3 +178,21 @@ void relay_server::server_run()
 	}
 }
 
+
+std::size_t parse_addr(void *pdata, void*addr)
+{
+    auto dst_addr = (sockaddr_in*)addr;
+    auto data=(uint8_t*)pdata;
+    if (dst_addr->sin_family == AF_INET) {
+        data[0] = 1;
+        memcpy(&data[1], &dst_addr->sin_addr, 4);
+        memcpy(&data[5], &dst_addr->sin_port, 2);
+        return 7;
+    } else {
+        auto dst_addr6 = (struct sockaddr_in6*)addr;
+        data[0] = 4;
+        memcpy(&data[1], &dst_addr6->sin6_addr, 16);
+        memcpy(&data[17], &dst_addr6->sin6_port, 2);
+        return 19;
+    }
+}

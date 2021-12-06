@@ -58,23 +58,7 @@ inline void throw_err_msg(const std::string &msg)
 }
 
 std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len);
-template<typename T>
-std::size_t parse_endpoint(uint8_t *data, const asio::ip::basic_endpoint<T> &dst)
-// std::size_t parse_endpoin(uint8_t *data, const asio::ip::basic_endpoint &dst)
-{
-        if (dst.address().is_v4()) {
-            auto dst_addr = (struct sockaddr_in*)dst.data();
-            data[0] = 1;
-            memcpy(&data[1], &dst_addr->sin_addr, 4);
-            memcpy(&data[5], &dst_addr->sin_port, 2);
-            return 7;
-        } else {
-            auto dst_addr6 = (struct sockaddr_in6*)dst.data();
-            data[0] = 4;
-            memcpy(&data[1], &dst_addr6->sin6_addr, 16);
-            memcpy(&data[17], &dst_addr6->sin6_port, 2);
-            return 19;
-        }
-}
+
+std::size_t parse_addr(void *pdata, void*addr);
 
 #endif
