@@ -28,15 +28,20 @@ private:
     uint8_t _data[READ_BUFFER_SIZE];
 
 public:
+    relay_data() :_header(0, DATA_UDP, READ_BUFFER_SIZE), _data{0}
+    {}
     explicit relay_data(uint32_t session) :_header(session, DATA_RELAY, READ_BUFFER_SIZE), _data{0} {
     }
 
     relay_data(uint32_t session, command cmd) : _header(session, cmd, 0), _data{0} {
-
     }
 
     _header_t & head() {
         return _header;
+    }
+    void session(uint32_t session)
+    {
+        _header._session = session;
     }
     auto session() {
 //		auto hd = (_header_t*)&_data[0];
