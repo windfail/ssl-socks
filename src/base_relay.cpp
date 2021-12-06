@@ -6,15 +6,15 @@
 struct base_relay::base_impl
 {
     explicit base_impl(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
-        _host(host), _service(service), _type(type)//,
-        // _timer(io, std::chrono::seconds(TIMEOUT))
+        _host(host), _service(service), _type(type),
+        _timer(io, std::chrono::seconds(TIMEOUT))
     {}
     std::string _host;
     std::string _service;
     server_type _type;
 
-    // asio::steady_timer _timer;
-    std::promise<void> _send_st;
+    asio::steady_timer _timer;
+    // std::promise<void> _send_st;
 
     std::queue<std::shared_ptr<relay_data>> _bufs;
     bool _is_stop = false;
@@ -35,8 +35,8 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
         }
         _impl->_bufs.push(buf);
         if (_impl->_bufs.size() == 1){
-            _impl->_send_st.set_value();
-            // auto cnt = _impl->_timer.cancel();
+            // _impl->_send_st.set_value();
+            auto cnt = _impl->_timer.cancel();
             // auto msg =boost::format("send data cancel timer %1%")%cnt;
             // internal_log(msg.str());
         }
@@ -58,13 +58,13 @@ void base_relay::start_send()
                     // internal_log(" stop send");
                     return;
                 }
-                _impl->_send_st = std::promise<void>();
-                auto send_ready = _impl->_send_st.get_future();
-                send_ready.wait();
+                // _impl->_send_st = std::promise<void>();
+                // auto send_ready = _impl->_send_st.get_future();
+                // send_ready.wait();
                 // internal_log("send complete, start wait: ");
-                // _impl->_timer.expires_after(std::chrono::seconds(TIMEOUT));
-                // boost::system::error_code err;
-                // _impl->_timer.async_wait(yield[err]);
+                _impl->_timer.expires_after(std::chrono::seconds(TIMEOUT));
+                boost::system::error_code err;
+                _impl->_timer.async_wait(yield[err]);
             }
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
@@ -87,10 +87,10 @@ bool base_relay::is_stop(bool stop)
 {
     if (stop) {
         // true means stop, cancel send wait
-        if (_impl->_bufs.empty()) {
-            _impl->_send_st.set_value();
-        }
-        // auto cnt = _impl->_timer.cancel();
+        // if (_impl->_bufs.empty()) {
+            // _impl->_send_st.set_value();
+        // }
+        auto cnt = _impl->_timer.cancel();
         // auto msg =boost::format("cancel timer %1%")%cnt;
         // internal_log(msg.str());
         return _impl->_is_stop = true;

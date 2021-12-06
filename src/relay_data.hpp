@@ -81,7 +81,7 @@ public:
     }
     auto udp_data_size()
     {
-        return _header._len-19);
+        return _header._len-19;
     }
     auto size() {
         return _header._len + sizeof(_header_t);

@@ -85,7 +85,7 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, 
     for (auto cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
         if ((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR)
             ||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
-            parse_addr_to_data(buf->data_buffer().data(), CMSG_DATA(cmsg));
+            // parse_addr_to_data(buf->data_buffer().data(), CMSG_DATA(cmsg));
         //     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         //     dstaddr->ss_family = AF_INET;
         //     return 0;
