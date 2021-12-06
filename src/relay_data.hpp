@@ -62,15 +62,21 @@ public:
         return std::array<asio::mutable_buffer, 2> { header_buffer(), data_buffer() };
     }
 
+    void resize_udp(std::size_t data_len) {
+        _header._len = data_len+19;
+    }
     void resize(std::size_t data_len) {
         _header._len = data_len;
-//		_data.resize(data_len);
     }
     auto header_size() {
         return sizeof(_header_t);
     }
     auto data_size() {
         return _header._len;
+    }
+    auto udp_data_size()
+    {
+        return _header._len-19);
     }
     auto size() {
         return _header._len + sizeof(_header_t);

@@ -199,6 +199,23 @@ extern "C"
     extern int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
     int get_dst_addr(int sock, struct sockaddr_storage *ss, socklen_t *len);
 }
+std::size_t parse_endpoin(uint8_t *data, const asio::ip::basic_endpoint &dst)
+{
+    
+        if (dst.address().is_v4()) {
+            auto dst_addr = (struct sockaddr_in*)dst.data();
+            data[0] = 1;
+            memcpy(&data[1], &dst_addr->sin_addr, 4);
+            memcpy(&data[5], &dst_addr->sin_port, 2);
+            return 7
+        } else {
+            auto dst_addr6 = (struct sockaddr_in6*)dst.data();
+            data[0] = 4;
+            memcpy(&data[1], &dst_addr6->sin6_addr, 16);
+            memcpy(&data[17], &dst_addr6->sin6_port, 2);
+            buffer->resize(19);
+        }
+}
 // local transparent proxy start
 void raw_tcp::tcp_impl::impl_start_transparent()
 {
@@ -213,20 +230,9 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         // int ret = get_dst_addr(_sock.native_handle(), ss, len);
         // proxy for tproxy
         auto dst = _sock.local_endpoint();
+
+        buffer->resize(parse_endpoint);
         // BOOST_LOG_TRIVIAL(info) << "tproxy start tcp "<<dst  ;
-        if (dst.address().is_v4()) {
-            auto dst_addr = (struct sockaddr_in*)dst.data();
-            data[0] = 1;
-            memcpy(&data[1], &dst_addr->sin_addr, 4);
-            memcpy(&data[5], &dst_addr->sin_port, 2);
-            buffer->resize(7);
-        } else {
-            auto dst_addr6 = (struct sockaddr_in6*)dst.data();
-            data[0] = 4;
-            memcpy(&data[1], &dst_addr6->sin6_addr, 16);
-            memcpy(&data[17], &dst_addr6->sin6_port, 2);
-            buffer->resize(19);
-        }
         // int ret = getsockname(_sock.native_handle(), (struct sockaddr*)&ss, &len);
         // if (ret < 0) {
 		// stop_raw_relay(relay_data::from_raw);

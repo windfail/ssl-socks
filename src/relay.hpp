@@ -59,4 +59,6 @@ inline void throw_err_msg(const std::string &msg)
 
 std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len);
 
+void parse_endpoint(uint8_t *data, const asio::ip::basic_endpoint &endpint);
+
 #endif

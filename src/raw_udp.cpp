@@ -5,21 +5,47 @@
 
 struct raw_udp::udp_impl
 {
-    explicit udp_impl(asio::io_context &io):
-        _sock(io), _host_resolver(io)
+    explicit udp_impl(raw_udp *owner, asio::io_context &io):
+        _owner(owner),
+        _sock(io, udp::v6())
+        // , _host_resolver(io, udp::v6())
         // _sock_tr(io), _w_sock(&_sock), _r_sock(&_sock)
-    {}
+    {
+    }
 
     ~udp_impl() =default;
 
+    raw_udp *_owner;
     udp::socket _sock;
-    udp::resolver _host_resolver;
+    // udp::resolver _host_resolver;
     udp::endpoint _remote;
 
+    void impl_start_recv();
 };
+void raw_udp::udp_impl::impl_start_recv()
+{
+    auto owner(_owner->shared_from_this());
+    _owner->spawn_in_strand([this, owner](asio::yield_context yield){
+        try {
+            while (true) {
+                udp::endpoint peer;
+                auto buf = std::make_shared<relay_data>(_owner->session());
+                auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
+                //	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
+                // post to manager
+                buf->resize_udp(len);
+                auto mngr = _owner->manager();
+                mngr->send_data(buf);
+            }
+        } catch (boost::system::system_error& error) {
+            BOOST_LOG_TRIVIAL(error) << _owner->session()<<" raw read error: "<<error.what();
+            _owner->internal_stop_relay();
+        }
+    });
+}
 // remote raw udp
 raw_udp::raw_udp(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
-    raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(io))
+    raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io))
 {
     BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
 }
@@ -71,21 +97,31 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
     if (type() == LOCAL_TRANSPARENT) {
         get_data_addr(data, re_addr);
         // bind sock to re_addr
+        _impl->_sock.bind(re_addr);
     } else {
         get_data_addr(data, _impl->_remote);
     }
 
     // send to _remote
-    return async_write(_impl->_sock, buf->udp_data_buffer(), yield);
-    // auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
-    // if (len != buf->size()) {
-    //     auto emsg = boost::format("tcp relay len %1%, data size %2%")%len % buf->size();
-    //     throw_err_msg(emsg.str());
-    // }
-    // BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
-    // return len;
+    auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), _impl->_remote, yield);
+    if (len != buf->udp_data_size()) {
+        auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();
+        throw_err_msg(emsg.str());
+    }
+    return len;
 }
 
+void raw_udp::start_relay()
+{
+    auto relay_type = type();
+    if (relay_type == LOCAL_TRANSPARENT) {
+        _impl->_sock.set_option(_ip_transparent_t(true));
+    } else if (relay_type == REMOTE_SERVER) {
+        _impl->_sock.bind(udp::endpoint(udp::v6(), 0));
+        _impl->impl_start_recv();
+    }
+    start_send();
+}
 void raw_udp::start_remote_relay()
 {
     auto self(shared_from_this());
@@ -99,33 +135,6 @@ void raw_udp::start_remote_relay()
                 auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buf);
                 manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
             }
-        } catch (boost::system::system_error& error) {
-            BOOST_LOG_TRIVIAL(error) << "raw write error: "<<error.what();
-            stop_raw_relay(relay_data::from_raw);
-        }
-    });
-
-}
-void raw_udp::start_raw_send(std::shared_ptr<relay_data> buf)
-{
-    auto self(shared_from_this());
-    asio::spawn(strand(), [this, self, buf](asio::yield_context yield) {
-        try {
-            if (session() == 0) {
-                // for tproxy rebind to remote dst
-                auto dst = _impl->_sess_addrs.find(buf->session());
-                if (dst == _impl->_sess_addrs.end()) {
-                    return ;
-                }
-                _impl->_dst = & dst->second->first;
-                auto &src = dst->second->second;
-            }
-            auto len = _impl->_w_sock->async_send_to(buf->data_buffer(), *_impl->_dst, yield);
-            if (len != buf->data_size()) {
-                auto emsg = boost::format(" wlen%1%, buflen%2%")%len%buf->data_size();
-                throw_err_msg(emsg.str());
-            }
-            send_next_data();
         } catch (boost::system::system_error& error) {
             BOOST_LOG_TRIVIAL(error) << "raw write error: "<<error.what();
             stop_raw_relay(relay_data::from_raw);
