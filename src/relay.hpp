@@ -18,7 +18,7 @@ using boost::asio::ip::udp;
 namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
 
-typedef boost::asio::detail::socket_option::boolean<SOL_IP, IP_TRANSPARENT> _ip_transparent_t;
+typedef boost::asio::detail::socket_option::boolean<SOL_IPV6, IPV6_TRANSPARENT> _ip_transparent_t;
 
 
 const int RELAY_TICK = 10;
