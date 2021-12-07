@@ -84,6 +84,7 @@ uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endp
         session = _session++;
         _srcs[src] = session;
     }
+    BOOST_LOG_TRIVIAL(info) << "ssl add raw udp from"<<src;
     auto relay = std::make_shared<raw_udp>(_io_context, _owner->type(), src);
     relay->session(session);
     relay->manager(std::static_pointer_cast<ssl_relay> (_owner->shared_from_this()));
