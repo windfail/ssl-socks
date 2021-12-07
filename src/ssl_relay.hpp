@@ -23,8 +23,8 @@ public:
 	void ssl_stop_raw_relay(uint32_t session);
     void start_relay();
 
-	void timer_handle();
 	bool check_host_gfw(const std::string &host);
+    void send_udp_data(const udp::endpoint &src, const std::shared_ptr<relay_data> &buf);
 
 private:
     struct ssl_impl;

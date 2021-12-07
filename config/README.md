@@ -25,13 +25,17 @@
      ```
      set gfw {
         typeof ip daddr
-        element = { 8.8.8.8}
+        elements = { 8.8.8.8}
      }
      ```
   1. dnsmasq gfw list upstream 8.8.8.8, add to ipset
      ```
      server=/google.com/8.8.8.8
      nftset=/google.com/gfw
+     # Use netfilters sets for both IPv4 and IPv6:
+     # This adds all addresses in *.yahoo.com to vpn4 and vpn6 for IPv4 and IPv6 addresses.
+     #nftset=/yahoo.com/4#ip#test#vpn4
+     #nftset=/yahoo.com/6#ip#test#vpn6
      ```
   2. ipset tproxy to port 1080 mark 1 prerouting
      ```

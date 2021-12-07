@@ -15,6 +15,7 @@ set(SOURCES
   src/base_relay.cpp
     src/ssl_relay.cpp
     src/raw_relay.cpp
+    src/raw_udp.cpp
     src/relay_server.cpp
     src/raw_tcp.cpp
     src/gfwlist.cpp

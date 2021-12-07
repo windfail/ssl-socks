@@ -6,14 +6,12 @@
 
 struct raw_udp::udp_impl
 {
-    explicit udp_impl(raw_udp *owner, asio::io_context &io):
+    explicit udp_impl(raw_udp *owner, asio::io_context &io, const udp::endpoint &src):
         _owner(owner),
-        _sock(io, udp::v6())
+        _sock(io, udp::v6()),
+        _remote(src)
         // , _host_resolver(io, udp::v6())
-        // _sock_tr(io), _w_sock(&_sock), _r_sock(&_sock)
-    {
-    }
-
+    {}
     ~udp_impl() =default;
 
     raw_udp *_owner;
@@ -23,6 +21,7 @@ struct raw_udp::udp_impl
 
     void impl_start_recv();
 };
+// remote
 void raw_udp::udp_impl::impl_start_recv()
 {
     auto owner(_owner->shared_from_this());
@@ -46,8 +45,8 @@ void raw_udp::udp_impl::impl_start_recv()
     });
 }
 // remote raw udp
-raw_udp::raw_udp(asio::io_context &io, server_type type, const std::string &host, const std::string &service):
-    raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io))
+raw_udp::raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src, const std::string &host, const std::string &service):
+    raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io, src))
 {
     BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
 }
@@ -123,24 +122,4 @@ void raw_udp::start_relay()
         _impl->impl_start_recv();
     }
     start_send();
-}
-void raw_udp::start_remote_relay()
-{
-    auto self(shared_from_this());
-    asio::spawn(strand(), [this, self](asio::yield_context yield) {
-        try {
-            _impl->_sock.async_connect(_impl->_remote, yield);
-            while (true) {
-                auto buf = std::make_shared<relay_data>(session());
-                auto len = _impl->_sock.async_receive(buf->data_buffer(), yield);
-                buf->resize(len);
-                auto send_on_ssl = std::bind(&ssl_relay::send_data_on_ssl, manager(), buf);
-                manager()->strand().post(send_on_ssl, asio::get_associated_allocator(send_on_ssl));
-            }
-        } catch (boost::system::system_error& error) {
-            BOOST_LOG_TRIVIAL(error) << "raw write error: "<<error.what();
-            stop_raw_relay(relay_data::from_raw);
-        }
-    });
-
 }

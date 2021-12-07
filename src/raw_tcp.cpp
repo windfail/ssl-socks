@@ -204,37 +204,9 @@ extern "C"
 void raw_tcp::tcp_impl::impl_start_transparent()
 {
     try {
-	// send start cmd to ssl
         auto buffer = std::make_shared<relay_data>(_owner->session(), relay_data::START_TCP);
-        // auto data = (uint8_t*) buffer->data_buffer().data();
-        // struct sockaddr_storage ss;
-        // socklen_t len = sizeof(ss);
-        // get origin dest
-        //  proxy for dnat
-        // int ret = get_dst_addr(_sock.native_handle(), ss, len);
-        // proxy for tproxy
         auto dst = _sock.local_endpoint();
-
         buffer->resize(parse_addr(buffer->data_buffer().data(), dst.data()));
-        // BOOST_LOG_TRIVIAL(info) << "tproxy start tcp "<<dst  ;
-        // int ret = getsockname(_sock.native_handle(), (struct sockaddr*)&ss, &len);
-        // if (ret < 0) {
-		// stop_raw_relay(relay_data::from_raw);
-        // 	return;
-        // }
-        // if (ss.ss_family == AF_INET) {
-        //     auto dst_addr = (struct sockaddr_in*)&ss;
-        //     data[0] = 1;
-        //     memcpy(&data[1], &dst_addr->sin_addr, 4);
-        // 	memcpy(&data[5], &dst_addr->sin_port, 2);
-        //     buffer->resize(7);
-        // } else if (ss.ss_family == AF_INET6) {
-        //     auto dst_addr6 = (struct sockaddr_in6*)&ss;
-        // 	data[0] = 4;
-        // 	memcpy(&data[1], &dst_addr6->sin6_addr, 16);
-        // 	memcpy(&data[17], &dst_addr6->sin6_port, 2);
-        //     buffer->resize(19);
-        // }
 //	BOOST_LOG_TRIVIAL(info) << " send start remote data: \n" << buf_to_string(buffer->data_buffer().data(), buffer->data_buffer().size());
         auto mngr = _owner-> manager();
         mngr->send_data(buffer);
