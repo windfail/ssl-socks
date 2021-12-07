@@ -100,10 +100,7 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, 
 }
 void relay_server::local_udp_server_start()
 {
-    // auto new_relay = std::make_shared<raw_udp> (_impl->_io, nullptr);
 	asio::spawn(_impl->_strand, [this](asio::yield_context yield) {
-		// auto ssl_ptr = std::make_shared<ssl_relay> (&_io_context, _config);
-		// _ssl_udp_relays.emplace_back(ssl_ptr);
 		while (true) {
 			try {
                 _impl->_u_sock.async_wait(udp::socket::wait_read, yield);
@@ -117,13 +114,12 @@ void relay_server::local_udp_server_start()
                     _impl->_ssl_udp = ssl_ptr;
                     ssl_ptr->start_relay();
                 }
-                // ssl_ptr->relay_udp(src_addr, buffer);
+                ssl_ptr->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
 			}
 		}
 	});
-
 }
 
 // local tcp server
@@ -164,7 +160,7 @@ void relay_server::start_server()
 		remote_server_start();
 	} else {
 		local_tcp_server_start();
-        // local_udp_server_start();
+        local_udp_server_start();
 	}
 }
 void relay_server::server_run()

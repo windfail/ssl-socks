@@ -1,4 +1,4 @@
-
+#include <vector>
 #include <iostream>
 #include <unordered_map>
 #include <boost/asio/spawn.hpp>
@@ -62,6 +62,7 @@ void ssl_relay::ssl_impl::impl_start_timer()
             if (err == asio::error::operation_aborted) {
                 return;
             }
+            std::vector<uint32_t> del;
             for (auto &[sess, timeout] : _timeout) {
                 if (timeout--)
                     continue;
@@ -69,8 +70,10 @@ void ssl_relay::ssl_impl::impl_start_timer()
                 auto relay = _relays[sess];
                 if ( relay )
                     relay->stop_raw_relay();
-                _owner->ssl_stop_raw_relay(sess);
+                del.push_back(sess);
             }
+            for (auto sess:del)
+                _owner->ssl_stop_raw_relay(sess);
         }
     });
 }
@@ -295,7 +298,7 @@ void ssl_relay::internal_log(const std::string &desc, const boost::system::syste
     BOOST_LOG_TRIVIAL(error) << "ssl_relay "<<desc<<error.what();
 }
 
-void ssl_relay::send_udp_data(const udp::endpoint &src, const std::shared_ptr<relay_data> &buf)
+void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> &buf)
 {
     auto self(shared_from_this());
     run_in_strand([this, self, src, buf]() {

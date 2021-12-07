@@ -24,7 +24,7 @@ public:
     void start_relay();
 
 	bool check_host_gfw(const std::string &host);
-    void send_udp_data(const udp::endpoint &src, const std::shared_ptr<relay_data> &buf);
+    void send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> &buf);
 
 private:
     struct ssl_impl;
