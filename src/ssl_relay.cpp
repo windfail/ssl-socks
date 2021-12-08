@@ -146,9 +146,7 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         if (relay) {
             relay->stop_raw_relay();
         }
-        auto data = (uint8_t*) buf->data_buffer().data();
-        auto len = buf->data_size();
-        auto[host, port] = parse_address(data, len);
+        auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
         _owner->add_raw_tcp(nullptr, session, host, port);
     } else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
         if (relay)

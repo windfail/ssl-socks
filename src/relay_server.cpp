@@ -21,6 +21,7 @@ struct relay_server::server_impl
                 _acceptor.set_option(_ip_transparent_t(true));
                 _u_sock.set_option(_ip_transparent_t(true));
                 _u_sock.set_option(asio::detail::socket_option::boolean<SOL_IPV6, IPV6_RECVORIGDSTADDR> (true));
+                _u_sock.set_option(asio::detail::socket_option::boolean<SOL_IP, IP_RECVORIGDSTADDR> (true));
             }
             _acceptor.bind(tcp::endpoint(tcp::v6(), config.local_port));
             _u_sock.bind(udp::endpoint(udp::v6(), config.local_port));
@@ -86,6 +87,8 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, 
         if ((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR)
             ||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
             parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
+            auto [host, port] = parse_address(buf->data_buffer().data(), 19);
+            BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
         //     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         //     dstaddr->ss_family = AF_INET;
         //     return 0;
