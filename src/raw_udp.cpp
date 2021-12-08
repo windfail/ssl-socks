@@ -30,9 +30,11 @@ void raw_udp::udp_impl::impl_start_recv()
             while (true) {
                 udp::endpoint peer;
                 auto buf = std::make_shared<relay_data>();
+                BOOST_LOG_TRIVIAL(info) << " raw udp recv at: "<< _sock.local_endpoint();
                 auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
                 parse_addr(buf->data_buffer().data(), peer.data());
-                //	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
+                buf->session(_owner->session());
+                BOOST_LOG_TRIVIAL(info) << " raw udp read len: "<< len<<" from "<<peer;
                 // post to manager
                 buf->resize_udp(len);
                 auto mngr = _owner->manager();
