@@ -19,11 +19,12 @@ std::string buf_to_string(void *buf, std::size_t size)
 	}
 	return out.str();
 }
-std::pair<std::string, std::string> parse_address(uint8_t *data, std::size_t len)
+std::pair<std::string, std::string> parse_address(void *buf, std::size_t len)
 {
 	std::string host;
 	std::string port_name;
 	uint8_t * port;
+    auto data = (uint8_t*) buf;
 	auto cmd = data[0];
 
 	if (cmd == 1) {
