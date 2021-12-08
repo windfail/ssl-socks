@@ -94,16 +94,19 @@ static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
 std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
 {
     uint8_t *data = (uint8_t*) buf->data_buffer().data();
-    udp::endpoint re_addr;
+    udp::endpoint re_addr(udp::v6(), 0);
     if (type() == LOCAL_TRANSPARENT) {
         get_data_addr(data, re_addr);
         // bind sock to re_addr
+
+        BOOST_LOG_TRIVIAL(info) << "bind to "<< re_addr;
         _impl->_sock.bind(re_addr);
     } else {
         get_data_addr(data, _impl->_remote);
     }
 
     // send to _remote
+    BOOST_LOG_TRIVIAL(info) << "send to "<< _impl->_remote;
     auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), _impl->_remote, yield);
     if (len != buf->udp_data_size()) {
         auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();

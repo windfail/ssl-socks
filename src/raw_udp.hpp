@@ -9,7 +9,7 @@ class raw_udp
     :public raw_relay
 {
 public:
-    raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src=udp::endpoint(), const std::string &host="", const std::string &service="");
+    raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src=udp::endpoint(udp::v6(), 0), const std::string &host="", const std::string &service="");
     ~raw_udp();
     void start_relay();
 
