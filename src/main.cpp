@@ -82,8 +82,7 @@ int main(int argc, char*argv[])
 {
 	relay_config config;
 
-
-	std::string conf_file = "/etc/groxy_ssl/groxy_ssl.conf";
+	std::string conf_file = "/etc/ssl-socks/sock_ssl.conf";
 
 	while (1) {
 		int option_index = 0;
