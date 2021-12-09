@@ -4,6 +4,8 @@
 #include "ssl_relay.hpp"
 #include "relay.hpp"
 
+std::string buf_to_string(void *buf, std::size_t size);
+
 struct raw_udp::udp_impl
 {
     explicit udp_impl(raw_udp *owner, asio::io_context &io, const udp::endpoint &src):
@@ -34,7 +36,8 @@ void raw_udp::udp_impl::impl_start_recv()
                 auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
                 parse_addr(buf->data_buffer().data(), peer.data());
                 buf->session(_owner->session());
-                BOOST_LOG_TRIVIAL(info) << " raw udp read len: "<< len<<" from "<<peer;
+                BOOST_LOG_TRIVIAL(info) << " raw udp read len: "<< len<<" from "<<peer<<"local"<<_sock.local_endpoint();
+                BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), len);
                 // post to manager
                 buf->resize_udp(len);
                 auto mngr = _owner->manager();
@@ -108,7 +111,8 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
     }
 
     // send to _remote
-    BOOST_LOG_TRIVIAL(info) << "send to "<< _impl->_remote;
+    BOOST_LOG_TRIVIAL(info) << "send to "<< _impl->_remote<< "local"<<_impl->_sock.local_endpoint();
+    BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
     auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), _impl->_remote, yield);
     if (len != buf->udp_data_size()) {
         auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();

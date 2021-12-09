@@ -109,11 +109,11 @@ void raw_tcp::tcp_impl::impl_start_read()
 raw_tcp::raw_tcp(asio::io_context &io, server_type type, const std::string &host, const std::string &service) :
     raw_relay(io, type, host, service), _impl(std::make_unique<tcp_impl> (this, io))
 {
-    BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
+    // BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }
 raw_tcp::~raw_tcp()
 {
-    BOOST_LOG_TRIVIAL(info) << "raw tcp destruct: "<<session();
+    // BOOST_LOG_TRIVIAL(info) << "raw tcp destruct: "<<session();
 }
 tcp::socket & raw_tcp::get_sock()
 {

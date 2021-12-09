@@ -80,7 +80,8 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, 
     };
     msg.msg_iov = &iobuf;
     msg.msg_iovlen = 1;
-    recvmsg(_u_sock.native_handle(), &msg, 0);
+    auto len = recvmsg(_u_sock.native_handle(), &msg, 0);
+    buf->resize_udp(len);
     // struct cmsghdr *cmsg;
 
     for (auto cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
