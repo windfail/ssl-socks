@@ -1,5 +1,6 @@
 #include <boost/format.hpp>
 #include <boost/asio/spawn.hpp>
+#include <unordered_map>
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
 #include "relay.hpp"
@@ -21,8 +22,17 @@ struct raw_udp::udp_impl
     // udp::resolver _host_resolver;
     udp::endpoint _remote;
 
+    std::unordered_map<uint32_t, udp::endpoint> _peers;
     void impl_start_recv();
 };
+void raw_udp::add_peer(uint32_t session, const udp::endpoint & peer)
+{
+    _impl->_peers[session] = peer;
+}
+void raw_udp::del_peer(uint32_t session)
+{
+    _impl->_peers.erase(session);
+}
 // remote
 void raw_udp::udp_impl::impl_start_recv()
 {
@@ -100,20 +110,22 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
 {
     uint8_t *data = (uint8_t*) buf->data_buffer().data();
     udp::endpoint re_addr(udp::v6(), 0);
+    auto dst = & _impl->_remote;
     if (type() == LOCAL_TRANSPARENT) {
         get_data_addr(data, re_addr);
         // bind sock to re_addr
 
-        BOOST_LOG_TRIVIAL(info) <<session()<< "bind to "<< re_addr;
+        BOOST_LOG_TRIVIAL(info) << session() <<"bind to "<< re_addr;
         _impl->_sock.bind(re_addr);
+        dst = &_impl->_peers[buf->session()];
     } else {
         get_data_addr(data, _impl->_remote);
     }
 
     // send to _remote
-    BOOST_LOG_TRIVIAL(info) << session()<<"send to "<< _impl->_remote<< "local"<<_impl->_sock.local_endpoint();
-    BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
-    auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), _impl->_remote, yield);
+    BOOST_LOG_TRIVIAL(info) << "send to "<< *dst<< "local"<<_impl->_sock.local_endpoint();
+    // BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
+    auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), *dst, yield);
     if (len != buf->udp_data_size()) {
         auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();
         throw_err_msg(emsg.str());
@@ -132,4 +144,8 @@ void raw_udp::start_relay()
         _impl->impl_start_recv();
     }
     start_send();
+}
+void raw_udp::internal_log(const std::string &desc, const boost::system::system_error&error)
+{
+    BOOST_LOG_TRIVIAL(error) << "raw_udp "<<session() << desc<<error.what();
 }
