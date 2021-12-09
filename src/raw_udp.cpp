@@ -104,14 +104,14 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
         get_data_addr(data, re_addr);
         // bind sock to re_addr
 
-        BOOST_LOG_TRIVIAL(info) << "bind to "<< re_addr;
+        BOOST_LOG_TRIVIAL(info) <<session()<< "bind to "<< re_addr;
         _impl->_sock.bind(re_addr);
     } else {
         get_data_addr(data, _impl->_remote);
     }
 
     // send to _remote
-    BOOST_LOG_TRIVIAL(info) << "send to "<< _impl->_remote<< "local"<<_impl->_sock.local_endpoint();
+    BOOST_LOG_TRIVIAL(info) << session()<<"send to "<< _impl->_remote<< "local"<<_impl->_sock.local_endpoint();
     BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
     auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), _impl->_remote, yield);
     if (len != buf->udp_data_size()) {
@@ -124,6 +124,7 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
 void raw_udp::start_relay()
 {
     auto relay_type = type();
+    _impl->_sock.set_option(udp::socket::reuse_address(true));
     if (relay_type == LOCAL_TRANSPARENT) {
         _impl->_sock.set_option(_ip_transparent_t(true));
     } else if (relay_type == REMOTE_SERVER) {
