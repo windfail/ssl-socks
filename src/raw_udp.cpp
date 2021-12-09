@@ -139,6 +139,7 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
 void raw_udp::start_relay()
 {
     auto relay_type = type();
+    _impl->_sock.set_option(udp::socket::reuse_address(true));
     if (relay_type == LOCAL_TRANSPARENT) {
         _impl->_sock.set_option(_ip_transparent_t(true));
     } else if (relay_type == REMOTE_SERVER) {
