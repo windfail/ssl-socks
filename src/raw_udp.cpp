@@ -27,7 +27,10 @@ struct raw_udp::udp_impl
 };
 void raw_udp::add_peer(uint32_t session, const udp::endpoint & peer)
 {
-    _impl->_peers[session] = peer;
+    auto self(shared_from_this());
+    run_in_strand([this, self]() {
+        _impl->_peers[session] = peer;
+    });
 }
 void raw_udp::del_peer(uint32_t session)
 {

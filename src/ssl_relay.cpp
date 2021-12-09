@@ -94,6 +94,11 @@ uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endp
         relay->start_relay();
         _relays[session] = relay;
     } else {
+        if (!_udp_relay) {
+            _udp_relay = std::make_shared<raw_udp>(_io_context, _owner->type());
+            _udp_relay->manager(std::static_pointer_cast<ssl_relay> (_owner->shared_from_this()));
+            _udp_relay->start_relay();
+        }
         _udp_relay->add_peer(session, src);
     }
     _timeout[session] = TIMEOUT_COUNT;
@@ -196,9 +201,6 @@ void ssl_relay::start_relay()
                 auto[host, port] = remote();
 				auto re_hosts = _impl->_host_resolver.async_resolve(host, port, yield);
                 asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
-                _impl->_udp_relay = std::make_shared<raw_udp>(_impl->_io_context, type());
-                _impl->_udp_relay->manager(std::static_pointer_cast<ssl_relay> (self));
-                _impl->_udp_relay->start_relay();
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
 
