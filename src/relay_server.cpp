@@ -108,7 +108,7 @@ void relay_server::local_udp_server_start()
 		while (true) {
 			try {
                 _impl->_u_sock.async_wait(udp::socket::wait_read, yield);
-				BOOST_LOG_TRIVIAL(error) << "local start recv udp msg ";
+				// BOOST_LOG_TRIVIAL(error) << "local start recv udp msg ";
                 auto buffer = std::make_shared<relay_data>();
                 udp::endpoint src_addr(udp::v6(), 0);
                 // recvmsg
