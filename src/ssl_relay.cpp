@@ -153,6 +153,7 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
             } else { // local no session ,tell remote stop
                 _timeout[session] = TIMEOUT_COUNT;
                 _udp_relay->send_data(buf);
+                return;
             }
         }
         _timeout[session] = TIMEOUT_COUNT;

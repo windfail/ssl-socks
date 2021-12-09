@@ -22,13 +22,14 @@ struct raw_udp::udp_impl
     // udp::resolver _host_resolver;
     udp::endpoint _remote;
 
+    udp::endpoint _local;
     std::unordered_map<uint32_t, udp::endpoint> _peers;
     void impl_start_recv();
 };
 void raw_udp::add_peer(uint32_t session, const udp::endpoint & peer)
 {
     auto self(shared_from_this());
-    run_in_strand([this, self]() {
+    run_in_strand([this, self, session, peer]() {
         _impl->_peers[session] = peer;
     });
 }
@@ -119,7 +120,13 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
         // bind sock to re_addr
 
         BOOST_LOG_TRIVIAL(info) << session() <<"bind to "<< re_addr;
-        _impl->_sock.bind(re_addr);
+        if (_impl->_local != re_addr) {
+            _impl->_local = re_addr;
+            _impl->_sock.close();
+            _impl->_sock.open(udp::v6());
+            _impl->_sock.set_option(_ip_transparent_t(true));
+            _impl->_sock.bind(re_addr);
+        }
         dst = &_impl->_peers[buf->session()];
     } else {
         get_data_addr(data, _impl->_remote);
@@ -141,7 +148,6 @@ void raw_udp::start_relay()
     auto relay_type = type();
     _impl->_sock.set_option(udp::socket::reuse_address(true));
     if (relay_type == LOCAL_TRANSPARENT) {
-        _impl->_sock.set_option(_ip_transparent_t(true));
     } else if (relay_type == REMOTE_SERVER) {
         _impl->_sock.bind(udp::endpoint(udp::v6(), 0));
         _impl->impl_start_recv();
