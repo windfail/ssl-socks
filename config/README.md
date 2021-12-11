@@ -9,9 +9,10 @@
      server=/google.com/192.168.1.20
      ipset=/google.com/gfwlist
      ```
-  2. ipset mark 1 prerouting
+  2. ipset mark 1 prerouting and out
      ```
      iptables -t mangle -A PREROUTING -m set --match-set gfwlist dst -j MARK --set-mark 1
+     iptables -t mangle -A OUTPUT -m set --match-set gfwlist dst -j MARK --set-mark 1
      ```
   3. route rule mark 1 route to work.lan
      `
