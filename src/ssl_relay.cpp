@@ -147,16 +147,19 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
             _owner->ssl_stop_raw_relay(session);
         }
     } else if (buf->cmd() == relay_data::DATA_UDP) {
+        // BOOST_LOG_TRIVIAL(info) << "ssl recv udp sess" << session;
         if (relay == nullptr) {
             if (_owner->type() == REMOTE_SERVER) { // remote start new udp
                 impl_add_raw_udp(session);
             } else { // local no session ,tell remote stop
+                // BOOST_LOG_TRIVIAL(info) << "ssl no raw udp" << session;
                 _timeout[session] = TIMEOUT_COUNT;
                 _udp_relay->send_data(buf);
                 return;
             }
         }
         _timeout[session] = TIMEOUT_COUNT;
+        // BOOST_LOG_TRIVIAL(info) << "ssl send raw udp data" << session;
         _relays[session]->send_data(buf);
     } else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
         if (relay) {

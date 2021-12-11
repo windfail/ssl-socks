@@ -31,15 +31,19 @@ void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){
         if (_impl->_is_stop) {
+            auto msg =boost::format("send data on stopped");
+            internal_log(msg.str());
             return;
         }
         _impl->_bufs.push(buf);
-        if (_impl->_bufs.size() == 1){
+        // auto msg =boost::format("add data buf, size %1%")%_impl->_bufs.size();
+        // internal_log(msg.str());
+        // if (_impl->_bufs.size() == 1){
             // _impl->_send_st.set_value();
-            auto cnt = _impl->_timer.cancel();
+        auto cnt = _impl->_timer.cancel();
             // auto msg =boost::format("send data cancel timer %1%")%cnt;
             // internal_log(msg.str());
-        }
+        // }
     });
 }
 void base_relay::start_send()

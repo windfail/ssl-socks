@@ -100,7 +100,7 @@ void raw_tcp::tcp_impl::impl_start_read()
                 mngr->send_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
-			BOOST_LOG_TRIVIAL(error) << _owner->session()<<" raw read error: "<<error.what();
+			BOOST_LOG_TRIVIAL(error) << _owner->session()<<" tcp raw read error: "<<error.what();
             _owner->internal_stop_relay();
 		}
 	});
@@ -151,11 +151,11 @@ std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
 {
     // return async_write(_impl->_sock, buf->data_buffer(), yield);
     auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
+    BOOST_LOG_TRIVIAL(info) << session() <<" tcp send from "<< _impl->_sock.local_endpoint()<<"to "<<_impl->_sock.remote_endpoint()<<"len "<<len;
     if (len != buf->data_size()) {
         auto emsg = boost::format("tcp %d relay len %1%, data size %2%")%session()%len % buf->size();
         throw_err_msg(emsg.str());
     }
-    // BOOST_LOG_TRIVIAL(info) << "tcp send ok, "<<len;
     return len;
 }
 

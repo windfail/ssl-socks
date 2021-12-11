@@ -7,11 +7,11 @@
   1. gfw list upstream work.lan, add to ipset
      ```
      server=/google.com/192.168.1.20
-     ipset=/google.com/gfw
+     ipset=/google.com/gfwlist
      ```
   2. ipset mark 1 prerouting
      ```
-     iptables -t mangle -A PREROUTING -m set --match-set gfw -j MARK --set-mark 1
+     iptables -t mangle -A PREROUTING -m set --match-set gfwlist dst -j MARK --set-mark 1
      ```
   3. route rule mark 1 route to work.lan
      `
@@ -41,14 +41,16 @@
      ```
      chain input {
          type filter hook prerouting priority mangle ;
-         ip daddr @gfw tproxy to :1080 meta mark set 1 accept
+         ip daddr @gfw4 ip protocol tcp tproxy to :1080 meta mark set 1 accept
+         ip daddr @gfw4 ip protocol udp tproxy to :1080 meta mark set 1 accept
      }
      ```
   3. ipset-out mark 1 re-route
      ```
      chain output {
          type route hook output priority mangle;
-         ip daddr @gfw meta mark set 1
+         ip daddr @gfw4 meta mark set 1
+         ip6 daddr @gfw6 meta mark set 1
      }
      ```
   3. route rule mark 1 route to local

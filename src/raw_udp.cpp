@@ -46,19 +46,19 @@ void raw_udp::udp_impl::impl_start_recv()
             while (true) {
                 udp::endpoint peer;
                 auto buf = std::make_shared<relay_data>();
-                BOOST_LOG_TRIVIAL(info) << " raw udp recv at: "<< _sock.local_endpoint();
+                // BOOST_LOG_TRIVIAL(info) <<_owner->session()<< " raw udp recv at: "<< _sock.local_endpoint();
                 auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
                 parse_addr(buf->data_buffer().data(), peer.data());
                 buf->session(_owner->session());
-                BOOST_LOG_TRIVIAL(info) << " raw udp read len: "<< len<<" from "<<peer<<"local"<<_sock.local_endpoint();
-                BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), len);
+                // BOOST_LOG_TRIVIAL(info) << _owner->session()<<" raw udp read len: "<< len<<" from "<<peer<<"local"<<_sock.local_endpoint();
+                // BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), len);
                 // post to manager
                 buf->resize_udp(len);
                 auto mngr = _owner->manager();
                 mngr->send_data(buf);
             }
         } catch (boost::system::system_error& error) {
-            BOOST_LOG_TRIVIAL(error) << _owner->session()<<" raw read error: "<<error.what();
+            BOOST_LOG_TRIVIAL(error) << _owner->session()<<" udp raw read error: "<<error.what();
             _owner->internal_stop_relay();
         }
     });
@@ -67,12 +67,12 @@ void raw_udp::udp_impl::impl_start_recv()
 raw_udp::raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src, const std::string &host, const std::string &service):
     raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io, src))
 {
-    BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
+    // BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
 }
 
 raw_udp::~raw_udp()
 {
-    BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
+    // BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
 }
 
 void raw_udp::stop_raw_relay()
@@ -80,7 +80,7 @@ void raw_udp::stop_raw_relay()
     auto self(shared_from_this());
     run_in_strand([this, self](){
         // call close socket
-        BOOST_LOG_TRIVIAL(info) << "stop raw udp";
+        // BOOST_LOG_TRIVIAL(info) << "stop raw udp";
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);
@@ -89,7 +89,12 @@ void raw_udp::stop_raw_relay()
 
 void raw_udp::internal_stop_relay()
 {
-    BOOST_LOG_TRIVIAL(info) << "internal stop raw udp";
+    // BOOST_LOG_TRIVIAL(info) << "internal stop raw udp";
+    if (type() == LOCAL_TRANSPARENT) {
+        // do not stop, restart start_send
+        start_send();
+        return;
+    }
     stop_raw_relay();
     auto mngr = manager();
     auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);
@@ -119,11 +124,12 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
         get_data_addr(data, re_addr);
         // bind sock to re_addr
 
-        BOOST_LOG_TRIVIAL(info) << session() <<"bind to "<< re_addr;
+        BOOST_LOG_TRIVIAL(info) << session() <<"bind to udp "<< re_addr;
         if (_impl->_local != re_addr) {
             _impl->_local = re_addr;
             _impl->_sock.close();
             _impl->_sock.open(udp::v6());
+            _impl->_sock.set_option(udp::socket::reuse_address(true));
             _impl->_sock.set_option(_ip_transparent_t(true));
             _impl->_sock.bind(re_addr);
         }
@@ -133,7 +139,7 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, 
     }
 
     // send to _remote
-    BOOST_LOG_TRIVIAL(info) << "send to "<< *dst<< "local"<<_impl->_sock.local_endpoint();
+    BOOST_LOG_TRIVIAL(info) << session()<<" udp send to "<< *dst<< "local"<<_impl->_sock.local_endpoint();
     // BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
     auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), *dst, yield);
     if (len != buf->udp_data_size()) {
