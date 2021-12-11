@@ -54,7 +54,7 @@ void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> 
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
         _ssl_tcp = ssl_ptr;
         // init and connect to remote
-        // BOOST_LOG_TRIVIAL(info) << "relay_server :ssl start";
+        BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp new ssl";
         ssl_ptr->start_relay();
     }
     ssl_ptr->add_raw_tcp(new_tcp);

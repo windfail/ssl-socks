@@ -42,8 +42,8 @@
      ```
      chain input {
          type filter hook prerouting priority mangle ;
-         ip daddr @gfw4 ip protocol tcp tproxy to :1080 meta mark set 1 accept
-         ip daddr @gfw4 ip protocol udp tproxy to :1080 meta mark set 1 accept
+         ip daddr @gfw4 ip protocol {tcp, udp} tproxy to :1080 meta mark set 1 accept
+         ip6 daddr @gfw6 meta l4proto {tcp, udp} tproxy to :1080 meta mark set 1 accept
      }
      ```
   3. ipset-out mark 1 re-route

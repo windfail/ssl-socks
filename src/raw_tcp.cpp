@@ -309,6 +309,7 @@ void raw_tcp::start_relay()
         [this]() {_impl->impl_start_transparent();},
     };
     // run_relay[_impl->_type]();
+    BOOST_LOG_TRIVIAL(info) << session() <<" tcp start "<< _impl->_sock.local_endpoint()<<"from "<<_impl->_sock.remote_endpoint();
     run_relay[type()]();
 }
 void raw_tcp::internal_log(const std::string &desc, const boost::system::system_error&error)
