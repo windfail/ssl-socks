@@ -41,6 +41,7 @@ struct ssl_relay::ssl_impl
 	std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _relays;
     std::map<udp::endpoint, uint32_t> _srcs;
 	std::unordered_map<uint32_t, int> _timeout;
+    int _ssl_timeout = TIMEOUT_COUNT;
     std::shared_ptr<raw_udp> _udp_relay;
 
 	gfw_list _gfw;
@@ -76,6 +77,12 @@ void ssl_relay::ssl_impl::impl_start_timer()
             }
             for (auto sess:del)
                 _owner->ssl_stop_raw_relay(sess);
+            if (_ssl_timeout-- == 0) {
+                // ssl timeout
+                BOOST_LOG_TRIVIAL(info) << "ssl timeout, stop";
+                _owner->internal_stop_relay();
+                return;
+            }
         }
     });
 }
@@ -127,6 +134,7 @@ void ssl_relay::ssl_impl::impl_start_read()
                         throw_err_msg(emsg.str());
 					}
 				}
+                _ssl_timeout = TIMEOUT_COUNT;
 				impl_do_data(buf);
 			}
 		} catch (boost::system::system_error& error) {
@@ -138,8 +146,9 @@ void ssl_relay::ssl_impl::impl_start_read()
 void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
 {
     auto session = buf->session();
-    auto relay = _relays[session];
+    std::shared_ptr<raw_relay> relay = nullptr;
     if ( buf->cmd() == relay_data::DATA_RELAY) { // tcp data
+        relay = _relays[session];
         if (relay) {
             relay->send_data(buf);
         } else {
@@ -147,27 +156,30 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
             _owner->ssl_stop_raw_relay(session);
         }
     } else if (buf->cmd() == relay_data::DATA_UDP) {
+        if (_owner->type() == LOCAL_TRANSPARENT) {
+            _timeout[session] = TIMEOUT_COUNT;
+            _udp_relay->send_data(buf);
+            return;
+        }
+        relay = _relays[session];
         // BOOST_LOG_TRIVIAL(info) << "ssl recv udp sess" << session;
         if (relay == nullptr) {
-            if (_owner->type() == REMOTE_SERVER) { // remote start new udp
+            // if (_owner->type() == REMOTE_SERVER) { // remote start new udp
                 impl_add_raw_udp(session);
-            } else { // local no session ,tell remote stop
-                // BOOST_LOG_TRIVIAL(info) << "ssl no raw udp" << session;
-                _timeout[session] = TIMEOUT_COUNT;
-                _udp_relay->send_data(buf);
-                return;
-            }
+            // }
         }
         _timeout[session] = TIMEOUT_COUNT;
         // BOOST_LOG_TRIVIAL(info) << "ssl send raw udp data" << session;
         _relays[session]->send_data(buf);
     } else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
+        relay = _relays[session];
         if (relay) {
             relay->stop_raw_relay();
         }
         auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
         _owner->add_raw_tcp(nullptr, session, host, port);
     } else if (buf->cmd() == relay_data::STOP_RELAY) { // post stop to raw
+        relay = _relays[session];
         if (relay)
             relay->stop_raw_relay();
         _relays.erase(session);
@@ -192,6 +204,7 @@ std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> &buf
         auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
         throw_err_msg(emsg.str());
     }
+    _impl->_ssl_timeout = TIMEOUT_COUNT;
     // BOOST_LOG_TRIVIAL(info) << "ssl send ok, "<<len;
     return len;
 }
@@ -227,6 +240,7 @@ void ssl_relay::internal_stop_relay()
 {
     auto self(shared_from_this());
 	spawn_in_strand([this, self](asio::yield_context yield) {
+        BOOST_LOG_TRIVIAL(info) << "ssl relay internal stop"<< self.use_count();
         if (is_stop())
             return;
         is_stop(true);
@@ -317,10 +331,15 @@ void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_da
 {
     auto self(shared_from_this());
     run_in_strand([this, self, src, buf]() {
+        if (is_stop()) {
+            BOOST_LOG_TRIVIAL(error) << "ssl send udp on stop";
+            return;
+        }
         auto sess = _impl->_srcs[src];
         if (sess == 0) {
             sess = _impl->impl_add_raw_udp(0, src);
         }
+        BOOST_LOG_TRIVIAL(error) << "send udp data";
         buf->session(sess);
         _impl->_timeout[sess] = TIMEOUT_COUNT;
         send_data(buf);

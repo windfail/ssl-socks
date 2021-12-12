@@ -57,6 +57,7 @@ void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> 
         BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp new ssl";
         ssl_ptr->start_relay();
     }
+    BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp";
     ssl_ptr->add_raw_tcp(new_tcp);
 }
 relay_server::relay_server(asio::io_context &io, const relay_config &config):
@@ -119,6 +120,7 @@ void relay_server::local_udp_server_start()
                     _impl->_ssl_udp = ssl_ptr;
                     ssl_ptr->start_relay();
                 }
+                BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
                 ssl_ptr->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
