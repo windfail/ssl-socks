@@ -306,7 +306,7 @@ ssl::context init_ssl(const relay_config &config)
 			 ssl::context::tlsv12_server :
 			 ssl::context::tlsv12_client);
 	BOOST_LOG_TRIVIAL(info) << "cert : " << config.cert << " key:"<<config.key;
-	ctx.load_verify_file(config.cert);//"yily.crt");
+	ctx.load_verify_file("/etc/ssl-socks/ca.crt");//"yily.crt");
 	ctx.set_verify_mode(ssl::verify_peer|ssl::verify_fail_if_no_peer_cert);
 	ctx.use_certificate_file(config.cert/*"yily.crt"*/, ssl::context::pem);
 	ctx.use_rsa_private_key_file(config.key/*"key.pem"*/, ssl::context::pem);

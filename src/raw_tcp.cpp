@@ -205,6 +205,7 @@ extern "C"
 void raw_tcp::tcp_impl::impl_start_transparent()
 {
     try {
+        BOOST_LOG_TRIVIAL(info) << _owner->session() <<" tcp start "<< _sock.local_endpoint()<<"from "<<_sock.remote_endpoint();
         auto buffer = std::make_shared<relay_data>(_owner->session(), relay_data::START_TCP);
         auto dst = _sock.local_endpoint();
         buffer->resize(parse_addr(buffer->data_buffer().data(), dst.data()));
@@ -309,7 +310,6 @@ void raw_tcp::start_relay()
         [this]() {_impl->impl_start_transparent();},
     };
     // run_relay[_impl->_type]();
-    BOOST_LOG_TRIVIAL(info) << session() <<" tcp start "<< _impl->_sock.local_endpoint()<<"from "<<_impl->_sock.remote_endpoint();
     run_relay[type()]();
 }
 void raw_tcp::internal_log(const std::string &desc, const boost::system::system_error&error)
