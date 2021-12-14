@@ -98,9 +98,9 @@ void raw_udp::internal_stop_relay()
     }
     stop_raw_relay();
     auto mngr = manager();
-    auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_RELAY);
+    auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_UDP);
     mngr->send_data(buffer);
-    mngr->ssl_stop_raw_relay(session());
+    mngr->ssl_stop_udp_relay(session());
 }
 static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
 {

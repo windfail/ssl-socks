@@ -20,7 +20,8 @@ public:
     void add_raw_tcp(const std::shared_ptr<raw_tcp> &relay, uint32_t session = 0, const std::string &host = "", const std::string &service="");
 
     // raw relay call ssl to stop raw, send to peer too
-	void ssl_stop_raw_relay(uint32_t session);
+	void ssl_stop_tcp_relay(uint32_t session);
+	void ssl_stop_udp_relay(uint32_t session);
     void start_relay();
 
 	bool check_host_gfw(const std::string &host);

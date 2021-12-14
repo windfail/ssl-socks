@@ -41,18 +41,19 @@ struct relay_server::server_impl
     udp::socket  _u_sock;
     asio::strand<asio::io_context::executor_type> _strand;
 
-    std::weak_ptr<ssl_relay> _ssl_tcp;
-    std::weak_ptr<ssl_relay> _ssl_udp;
+    // std::weak_ptr<ssl_relay> _ssl_tcp;
+    // std::weak_ptr<ssl_relay> _ssl_udp;
+    std::weak_ptr<ssl_relay> _ssl;
 };
 
 // add new tcp relay to ssl relay
 // if no ssl relay, start new ssl connection
 void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp)
 {
-    auto ssl_ptr = _ssl_tcp.lock();
+    auto ssl_ptr = _ssl.lock();
     if (ssl_ptr == nullptr) {
         ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
-        _ssl_tcp = ssl_ptr;
+        _ssl = ssl_ptr;
         // init and connect to remote
         BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp new ssl";
         ssl_ptr->start_relay();
@@ -114,10 +115,10 @@ void relay_server::local_udp_server_start()
                 udp::endpoint src_addr(udp::v6(), 0);
                 // recvmsg
                 _impl->impl_udp_recv(buffer, src_addr);
-                auto ssl_ptr = _impl->_ssl_udp.lock();
+                auto ssl_ptr = _impl->_ssl.lock();
                 if (ssl_ptr == nullptr) {
                     ssl_ptr = std::make_shared<ssl_relay> (_impl->_io, _impl->_config);
-                    _impl->_ssl_udp = ssl_ptr;
+                    _impl->_ssl = ssl_ptr;
                     ssl_ptr->start_relay();
                 }
                 BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();

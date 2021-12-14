@@ -10,11 +10,11 @@ class relay_data
 
 public:
     enum command {
-        STOP_RELAY,
+        STOP_TCP,
         START_TCP,
         DATA_UDP,
-        DATA_RELAY,
-        KEEP_RELAY
+        DATA_TCP,
+        STOP_UDP
     };
     struct _header_t {
         uint32_t _session;
@@ -30,7 +30,7 @@ private:
 public:
     relay_data() :_header(0, DATA_UDP, READ_BUFFER_SIZE), _data{0}
     {}
-    explicit relay_data(uint32_t session) :_header(session, DATA_RELAY, READ_BUFFER_SIZE), _data{0} {
+    explicit relay_data(uint32_t session) :_header(session, DATA_TCP, READ_BUFFER_SIZE), _data{0} {
     }
 
     relay_data(uint32_t session, command cmd) : _header(session, cmd, 0), _data{0} {
