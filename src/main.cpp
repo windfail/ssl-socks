@@ -4,6 +4,7 @@
 #include <fstream>
 #include <tuple>
 
+#include <boost/format.hpp>
 #include <memory>
 #include <vector>
 #include <thread>
@@ -37,24 +38,56 @@ static void init_log(const std::string &log_file)
 	BOOST_LOG_TRIVIAL(error) << "An error severity message";
 	BOOST_LOG_TRIVIAL(fatal) << "A fatal severity message";
 }
+#include <boost/json/src.hpp>
+using namespace boost::json;
 
+relay_config get_config(object &jconf)
+{
+    relay_config config;
+    config.local_port = jconf["port"].as_int64();
+    int r_port = jconf["port"].as_int64();
+    config.remote_port = (boost::format("%1%")%r_port).str();
+    config.remote_ip = jconf["server"].as_string().c_str();
+    config.thread_num = jconf["thread_num"].as_int64();
+    string type = jconf["type"].as_string();
+    if (type == "local") {
+        config.type = LOCAL_SERVER;
+    } else if (type == "tproxy") {
+        config.type = LOCAL_TRANSPARENT;
+    } else if (type == "remote") {
+        config.type = REMOTE_SERVER;
+    }
+    config.cert = jconf["cert"].as_string().c_str();
+    config.key = jconf["key"].as_string().c_str();
+    config.logfile = jconf["log"].as_string().c_str();
+    config.gfw_file = jconf["gfwlist"].as_string().c_str();
+
+    return config;
+}
 int server_start(const relay_config &config)
 {
 	init_log(config.logfile);
 
-    asio::io_context io;
-	relay_server server(io, config);
-	server.start_server();
+    while (true){
+        try {
+            asio::io_context io;
+            relay_server server(io, config);
+            server.start_server();
 
-	BOOST_LOG_TRIVIAL(info) << "main  start thread";
-	std::vector<std::thread> server_th;
-	for (int i = 1; i < config.thread_num; i++) {
-		server_th.emplace_back([&](){ server.server_run();});
-	}
-	server.server_run();
+            BOOST_LOG_TRIVIAL(info) << "main  start thread";
+            std::vector<std::thread> server_th;
+            for (int i = 1; i < config.thread_num; i++) {
+                server_th.emplace_back([&](){ server.server_run();});
+            }
+            server.server_run();
+        } catch (std::exception & e) {
+            BOOST_LOG_TRIVIAL(error) << "main :server run error: "<<e.what();
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(error) << "main ;server run error with unkown exception ";
+        }
+    }
 
 	return 0;
-
 }
 
 void str_strip(std::string & src, const std::string &ch)
@@ -80,7 +113,6 @@ std::pair<std::string, std::string> str_split(const std::string & src, const cha
 
 int main(int argc, char*argv[])
 {
-	relay_config config;
 
 	std::string conf_file = "/etc/ssl-socks/sock_ssl.conf";
 
@@ -105,6 +137,8 @@ int main(int argc, char*argv[])
 		}
 
 	}
+    auto conf=parse("");
+	relay_config config = get_config(conf);
 	std::string conf;
 	std::ifstream conf_in(conf_file);
 

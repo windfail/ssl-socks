@@ -93,6 +93,7 @@ void raw_udp::internal_stop_relay()
     if (type() == LOCAL_TRANSPARENT) {
         // do not stop, restart start_send
         BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
+        _impl->_local = udp::endpoint();
         start_send();
         return;
     }
