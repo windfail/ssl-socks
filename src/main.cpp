@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <boost/json/src.hpp>
+using namespace boost::json;
 #include "relay.hpp"
 // #include <boost/log/core.hpp>
 // #include <boost/log/trivial.hpp>
@@ -38,8 +40,6 @@ static void init_log(const std::string &log_file)
 	BOOST_LOG_TRIVIAL(error) << "An error severity message";
 	BOOST_LOG_TRIVIAL(fatal) << "A fatal severity message";
 }
-#include <boost/json/src.hpp>
-using namespace boost::json;
 
 relay_config get_config(object &jconf)
 {
@@ -133,45 +133,54 @@ int main(int argc, char*argv[])
 			break;
 		}
 
-
 		}
 
 	}
-    auto conf=parse("");
-	relay_config config = get_config(conf);
-	std::string conf;
-	std::ifstream conf_in(conf_file);
+	if (std::ifstream conf_in{conf_file, std::ios::ate}){
+        auto size = conf_in.tellg();
+        std::string conf_str(size, 0);
+        conf_in.seekg(0);
+        conf_in.read(&conf_str[0], size);
+        monotonic_resource mr;
+        parse_options opt;
+        opt.allow_comments = true;
+        opt.allow_trailing_commas = true;
+        auto conf=parse(conf_str, &mr, opt);
+        relay_config config = get_config(conf.as_object());
+        server_start(config);
+    }
 
-	for (std::string line; std::getline(conf_in, line); ) {
-		std::string key, value;
-		std::tie(key, value) = str_split(line, '#');
-		std::tie(key, value) = str_split(key, '=');
-		str_strip(key, " \t");
-		str_strip(value, " \t");
-		if (key == "thread_num") {
-			config.thread_num = stoi(value);
-		} else if (key == "port") {
-			config.local_port = stoi(value);
-		} else if (key == "type") {
-			config.type =
-				value == "local" ? LOCAL_SERVER :
-				value == "remote" ? REMOTE_SERVER:
-				LOCAL_TRANSPARENT;
-		} else if (key == "server") {
-			config.remote_ip = value;
-		} else if (key == "server_port") {
-			config.remote_port = value;//stoi(value);
-		} else if (key == "cert") {
-			config.cert = value;
-		} else if (key == "key") {
-			config.key = value;
-		} else if (key == "gfwlist") {
-			config.gfw_file = value;
-		} else if (key == "log") {
-			config.logfile = value;
-		}
-	}
-	server_start(config);
+	// std::string conf;
+	// for (std::string line; std::getline(conf_in, line); ) {
+	// 	std::string key, value;
+	// 	std::tie(key, value) = str_split(line, '#');
+	// 	std::tie(key, value) = str_split(key, '=');
+	// 	str_strip(key, " \t");
+	// 	str_strip(value, " \t");
+	// 	if (key == "thread_num") {
+	// 		config.thread_num = stoi(value);
+	// 	} else if (key == "port") {
+	// 		config.local_port = stoi(value);
+	// 	} else if (key == "type") {
+	// 		config.type =
+	// 			value == "local" ? LOCAL_SERVER :
+	// 			value == "remote" ? REMOTE_SERVER:
+	// 			LOCAL_TRANSPARENT;
+	// 	} else if (key == "server") {
+	// 		config.remote_ip = value;
+	// 	} else if (key == "server_port") {
+	// 		config.remote_port = value;//stoi(value);
+	// 	} else if (key == "cert") {
+	// 		config.cert = value;
+	// 	} else if (key == "key") {
+	// 		config.key = value;
+	// 	} else if (key == "gfwlist") {
+	// 		config.gfw_file = value;
+	// 	} else if (key == "log") {
+	// 		config.logfile = value;
+	// 	}
+	// }
+	// server_start(config);
 
 	return 0;
 

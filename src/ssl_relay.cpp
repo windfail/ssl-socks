@@ -27,6 +27,7 @@ struct ssl_relay::ssl_impl
          _ctx(init_ssl(config)),
 		_sock(io, _ctx),
         _host_resolver(io),
+        _local_udp(io, config.type),
         _gfw(config.gfw_file),
         _timer(io)
     {}
@@ -45,7 +46,8 @@ struct ssl_relay::ssl_impl
     // udp relay timeout
 	std::unordered_map<uint32_t, int> _timeout;
     int _ssl_timeout = TIMEOUT_COUNT;
-    std::shared_ptr<raw_udp> _udp_relay;
+    // std::shared_ptr<raw_udp> _udp_relay;
+    raw_udp _local_udp;
 
 	gfw_list _gfw;
     uint32_t _session = 1;
@@ -104,12 +106,8 @@ uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endp
         relay->start_relay();
         _udp_relays[session] = relay;
     } else {
-        if (!_udp_relay) {
-            _udp_relay = std::make_shared<raw_udp>(_io_context, _owner->type());
-            _udp_relay->manager(std::static_pointer_cast<ssl_relay> (_owner->shared_from_this()));
-            _udp_relay->start_relay();
-        }
-        _udp_relay->add_peer(session, src);
+        _local_udp.add_peer(session, src);
+        // _udp_relay->add_peer(session, src);
     }
     _timeout[session] = TIMEOUT_COUNT;
     return session;
@@ -150,9 +148,8 @@ void ssl_relay::ssl_impl::impl_start_read()
 void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
 {
     auto session = buf->session();
-    std::shared_ptr<raw_relay> relay = nullptr;
     if ( buf->cmd() == relay_data::DATA_TCP) { // tcp data
-        relay = _tcp_relays[session];
+        auto relay = _tcp_relays[session];
         if (relay) {
             relay->send_data(buf);
         } else {
@@ -163,10 +160,10 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
     } else if (buf->cmd() == relay_data::DATA_UDP) {
         if (_owner->type() == LOCAL_TRANSPARENT) {
             _timeout[session] = TIMEOUT_COUNT;
-            _udp_relay->send_data(buf);
+            _local_udp.send_data(buf);
             return;
         }
-        relay = _udp_relays[session];
+        auto relay = _udp_relays[session];
         // BOOST_LOG_TRIVIAL(info) << "ssl recv udp sess" << session;
         if (relay == nullptr) {
             // if (_owner->type() == REMOTE_SERVER) { // remote start new udp
@@ -177,19 +174,19 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         // BOOST_LOG_TRIVIAL(info) << "ssl send raw udp data" << session;
         _udp_relays[session]->send_data(buf);
     } else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
-        relay = _tcp_relays[session];
+        auto relay = _tcp_relays[session];
         if (relay) {
             relay->stop_raw_relay();
         }
         auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
         _owner->add_raw_tcp(nullptr, session, host, port);
     } else if (buf->cmd() == relay_data::STOP_TCP) { // post stop to raw
-        relay = _tcp_relays[session];
+        auto relay = _tcp_relays[session];
         if (relay)
             relay->stop_raw_relay();
         _tcp_relays.erase(session);
     } else if (buf->cmd() == relay_data::STOP_UDP) { // post stop to raw
-        relay = _udp_relays[session];
+        auto relay = _udp_relays[session];
         if (relay)
             relay->stop_raw_relay();
         _udp_relays.erase(session);
@@ -234,6 +231,10 @@ void ssl_relay::start_relay()
 			_impl->_sock.async_handshake(
 				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
+            if (type() == LOCAL_TRANSPARENT) {
+                _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
+                _impl->_local_udp.start_relay();
+            }
             start_send();
 			// start ssl read routine
             _impl->impl_start_read();
