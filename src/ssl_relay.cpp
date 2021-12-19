@@ -27,7 +27,7 @@ struct ssl_relay::ssl_impl
          _ctx(init_ssl(config)),
 		_sock(io, _ctx),
         _host_resolver(io),
-        _local_udp(io, config.type),
+        _local_udp(std::make_shared<raw_udp> (io, config.type)),
         _gfw(config.gfw_file),
         _timer(io)
     {}
@@ -46,8 +46,8 @@ struct ssl_relay::ssl_impl
     // udp relay timeout
 	std::unordered_map<uint32_t, int> _timeout;
     int _ssl_timeout = TIMEOUT_COUNT;
-    // std::shared_ptr<raw_udp> _udp_relay;
-    raw_udp _local_udp;
+    std::shared_ptr<raw_udp> _local_udp;
+    // raw_udp _local_udp;
 
 	gfw_list _gfw;
     uint32_t _session = 1;
@@ -106,8 +106,8 @@ uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endp
         relay->start_relay();
         _udp_relays[session] = relay;
     } else {
-        _local_udp.add_peer(session, src);
-        // _udp_relay->add_peer(session, src);
+        // _local_udp.add_peer(session, src);
+        _local_udp->add_peer(session, src);
     }
     _timeout[session] = TIMEOUT_COUNT;
     return session;
@@ -160,7 +160,8 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
     } else if (buf->cmd() == relay_data::DATA_UDP) {
         if (_owner->type() == LOCAL_TRANSPARENT) {
             _timeout[session] = TIMEOUT_COUNT;
-            _local_udp.send_data(buf);
+            // _local_udp.send_data(buf);
+            _local_udp->send_data(buf);
             return;
         }
         auto relay = _udp_relays[session];
@@ -232,8 +233,10 @@ void ssl_relay::start_relay()
 				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
             if (type() == LOCAL_TRANSPARENT) {
-                _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
-                _impl->_local_udp.start_relay();
+                // _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
+                // _impl->_local_udp.start_relay();
+                _impl->_local_udp->manager(std::static_pointer_cast<ssl_relay> (self));
+                _impl->_local_udp->start_relay();
             }
             start_send();
 			// start ssl read routine
