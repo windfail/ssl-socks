@@ -45,7 +45,7 @@ relay_config get_config(object &jconf)
 {
     relay_config config;
     config.local_port = jconf["port"].as_int64();
-    int r_port = jconf["port"].as_int64();
+    int r_port = jconf["server_port"].as_int64();
     config.remote_port = (boost::format("%1%")%r_port).str();
     config.remote_ip = jconf["server"].as_string().c_str();
     config.thread_num = jconf["thread_num"].as_int64();
