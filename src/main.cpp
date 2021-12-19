@@ -69,20 +69,26 @@ int server_start(const relay_config &config)
 	init_log(config.logfile);
 
     while (true){
+        asio::io_context io;
+        relay_server server(io, config);
+        std::vector<std::thread> server_th;
         try {
-            asio::io_context io;
-            relay_server server(io, config);
             server.start_server();
 
             BOOST_LOG_TRIVIAL(info) << "main  start thread";
-            std::vector<std::thread> server_th;
             for (int i = 1; i < config.thread_num; i++) {
                 server_th.emplace_back([&](){ server.server_run();});
             }
             server.server_run();
         } catch (std::exception & e) {
+            io.stop();
+            for (auto && th: server_th) {
+                BOOST_LOG_TRIVIAL(error) << "main :join thread ";
+                th.join();
+            }
             BOOST_LOG_TRIVIAL(error) << "main :server run error: "<<e.what();
         } catch (...) {
+            io.stop();
             BOOST_LOG_TRIVIAL(error) << "main ;server run error with unkown exception ";
         }
     }

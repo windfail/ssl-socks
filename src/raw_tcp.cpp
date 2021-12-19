@@ -137,14 +137,18 @@ void raw_tcp::stop_raw_relay()
 
 void raw_tcp::internal_stop_relay()
 {
-    if (is_stop())
-        return;
-	// BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
-    stop_raw_relay();
-    auto mngr = manager();
-    auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_TCP);
-    mngr->send_data(buffer);
-    mngr->ssl_stop_tcp_relay(session());
+    try{
+        if (is_stop())
+            return;
+        // BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
+        stop_raw_relay();
+        auto mngr = manager();
+        auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_TCP);
+        mngr->send_data(buffer);
+        mngr->ssl_stop_tcp_relay(session());
+    } catch (boost::system::system_error& error) {
+        BOOST_LOG_TRIVIAL(error) << session()<<" tcp stop error: "<<error.what();
+    }
 }
 
 std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
