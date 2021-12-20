@@ -3,13 +3,16 @@
 #include <iostream>
 #include <fstream>
 #include <tuple>
-
+#include <string>
 #include <boost/format.hpp>
 #include <memory>
 #include <vector>
 #include <thread>
-#include <boost/json/src.hpp>
-using namespace boost::json;
+// #include <boost/json/src.hpp>
+// using namespace boost::json;
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "relay.hpp"
 // #include <boost/log/core.hpp>
 // #include <boost/log/trivial.hpp>
@@ -41,29 +44,6 @@ static void init_log(const std::string &log_file)
 	BOOST_LOG_TRIVIAL(fatal) << "A fatal severity message";
 }
 
-relay_config get_config(object &jconf)
-{
-    relay_config config;
-    config.local_port = jconf["port"].as_int64();
-    int r_port = jconf["server_port"].as_int64();
-    config.remote_port = (boost::format("%1%")%r_port).str();
-    config.remote_ip = jconf["server"].as_string().c_str();
-    config.thread_num = jconf["thread_num"].as_int64();
-    string type = jconf["type"].as_string();
-    if (type == "local") {
-        config.type = LOCAL_SERVER;
-    } else if (type == "tproxy") {
-        config.type = LOCAL_TRANSPARENT;
-    } else if (type == "remote") {
-        config.type = REMOTE_SERVER;
-    }
-    config.cert = jconf["cert"].as_string().c_str();
-    config.key = jconf["key"].as_string().c_str();
-    config.logfile = jconf["log"].as_string().c_str();
-    config.gfw_file = jconf["gfwlist"].as_string().c_str();
-
-    return config;
-}
 int server_start(const relay_config &config)
 {
 	init_log(config.logfile);
@@ -116,6 +96,54 @@ std::pair<std::string, std::string> str_split(const std::string & src, const cha
 	return {src.substr(0, pos), src.substr(pos+1)};
 
 }
+relay_config get_config(json &jconf)
+{
+    relay_config config;
+    config.local_port = jconf["port"].get<int>();
+    config.thread_num = jconf["thread_num"].get<int>();
+    std::string type = jconf["type"].get<std::string>();
+    if (type == "local") {
+        config.type = LOCAL_SERVER;
+    } else if (type == "tproxy") {
+        config.type = LOCAL_TRANSPARENT;
+    } else if (type == "remote") {
+        config.type = REMOTE_SERVER;
+    }
+    if (config.type != REMOTE_SERVER) {
+        int r_port = jconf["server_port"].get<int>();
+        config.remote_port = (boost::format("%1%")%r_port).str();
+        config.remote_ip = jconf["server"].get<std::string>();
+        config.gfw_file = jconf.value("gfwlist", "/etc/ssl-socks/gfwlist");
+    }
+    config.cert = jconf["cert"].get<std::string>();
+    config.key = jconf["key"].get<std::string>();
+    config.logfile = jconf["log"].get<std::string>();
+
+    return config;
+}
+// relay_config get_config(object &jconf)
+// {
+//     relay_config config;
+//     config.local_port = jconf["port"].as_int64();
+//     int r_port = jconf["server_port"].as_int64();
+//     config.remote_port = (boost::format("%1%")%r_port).str();
+//     config.remote_ip = jconf["server"].as_string().c_str();
+//     config.thread_num = jconf["thread_num"].as_int64();
+//     string type = jconf["type"].as_string();
+//     if (type == "local") {
+//         config.type = LOCAL_SERVER;
+//     } else if (type == "tproxy") {
+//         config.type = LOCAL_TRANSPARENT;
+//     } else if (type == "remote") {
+//         config.type = REMOTE_SERVER;
+//     }
+//     config.cert = jconf["cert"].as_string().c_str();
+//     config.key = jconf["key"].as_string().c_str();
+//     config.logfile = jconf["log"].as_string().c_str();
+//     config.gfw_file = jconf["gfwlist"].as_string().c_str();
+
+//     return config;
+// }
 
 int main(int argc, char*argv[])
 {
@@ -142,19 +170,25 @@ int main(int argc, char*argv[])
 		}
 
 	}
-	if (std::ifstream conf_in{conf_file, std::ios::ate}){
-        auto size = conf_in.tellg();
-        std::string conf_str(size, 0);
-        conf_in.seekg(0);
-        conf_in.read(&conf_str[0], size);
-        monotonic_resource mr;
-        parse_options opt;
-        opt.allow_comments = true;
-        opt.allow_trailing_commas = true;
-        auto conf=parse(conf_str, &mr, opt);
-        relay_config config = get_config(conf.as_object());
-        server_start(config);
-    }
+	std::ifstream conf_in{conf_file};
+    json conf;
+    conf_in>>conf;
+    relay_config config = get_config(conf);
+    server_start(config);
+
+	// if (std::ifstream conf_in{conf_file, std::ios::ate}){
+    //     auto size = conf_in.tellg();
+    //     std::string conf_str(size, 0);
+    //     conf_in.seekg(0);
+    //     conf_in.read(&conf_str[0], size);
+    //     monotonic_resource mr;
+    //     parse_options opt;
+    //     opt.allow_comments = true;
+    //     opt.allow_trailing_commas = true;
+    //     auto conf=parse(conf_str, &mr, opt);
+    //     relay_config config = get_config(conf.as_object());
+    //     server_start(config);
+    // }
 
 	// std::string conf;
 	// for (std::string line; std::getline(conf_in, line); ) {

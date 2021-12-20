@@ -33,6 +33,7 @@ pkg_check_modules(libcrypto REQUIRED )
 pkg_check_modules(libssl REQUIRED )
 pkg_check_modules(pthread REQUIRED )
 
+find_package(nlohmann_json  REQUIRED)
 # find a boost install with the libraries filesystem and system
 find_package(Boost 1.71 REQUIRED COMPONENTS system log log_setup coroutine)
 
