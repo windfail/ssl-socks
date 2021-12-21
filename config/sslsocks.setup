@@ -1,0 +1,16 @@
+#!/bin/bash
+
+case "$1" in
+	"start")
+	echo "start"
+	nft -f /etc/ssl-socks/nftables.conf
+	ip rule add fwmark 1 table 100
+	ip route add local default table 100 dev lo
+	;;
+	"stop")
+	echo "stop"
+	nft flush ruleset
+	ip route del local default table 100
+	ip rule del fwmark 1
+	;;
+esac
