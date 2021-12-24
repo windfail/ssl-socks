@@ -171,8 +171,8 @@ int main(int argc, char*argv[])
 
 	}
 	std::ifstream conf_in{conf_file};
-    json conf;
-    conf_in>>conf;
+    json conf = json::parse(conf_in, nullptr, true, true);
+    // conf_in>>conf;
     relay_config config = get_config(conf);
     server_start(config);
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=ssl-socks
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/bin/sslsocks.setup start
+ExecStart=/usr/local/bin/netsock -c /etc/ssl-socks/tproxy.conf
+KillSignal=SIGKILL
+ExecStopPost=/usr/local/bin/sslsocks.setup stop
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

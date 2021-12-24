@@ -1,0 +1,13 @@
+[Unit]
+Description=ssl-socks
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/netsock -c /etc/ssl-socks/remote.conf
+KillSignal=SIGKILL
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
