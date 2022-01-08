@@ -59,7 +59,7 @@ void base_relay::start_send()
                     _impl->_bufs.pop();
                 }
                 if (_impl->_is_stop) {
-                    // internal_log(" stop send");
+                    internal_log(" stop send");
                     return;
                 }
                 // _impl->_send_st = std::promise<void>();

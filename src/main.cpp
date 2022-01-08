@@ -190,37 +190,6 @@ int main(int argc, char*argv[])
     //     server_start(config);
     // }
 
-	// std::string conf;
-	// for (std::string line; std::getline(conf_in, line); ) {
-	// 	std::string key, value;
-	// 	std::tie(key, value) = str_split(line, '#');
-	// 	std::tie(key, value) = str_split(key, '=');
-	// 	str_strip(key, " \t");
-	// 	str_strip(value, " \t");
-	// 	if (key == "thread_num") {
-	// 		config.thread_num = stoi(value);
-	// 	} else if (key == "port") {
-	// 		config.local_port = stoi(value);
-	// 	} else if (key == "type") {
-	// 		config.type =
-	// 			value == "local" ? LOCAL_SERVER :
-	// 			value == "remote" ? REMOTE_SERVER:
-	// 			LOCAL_TRANSPARENT;
-	// 	} else if (key == "server") {
-	// 		config.remote_ip = value;
-	// 	} else if (key == "server_port") {
-	// 		config.remote_port = value;//stoi(value);
-	// 	} else if (key == "cert") {
-	// 		config.cert = value;
-	// 	} else if (key == "key") {
-	// 		config.key = value;
-	// 	} else if (key == "gfwlist") {
-	// 		config.gfw_file = value;
-	// 	} else if (key == "log") {
-	// 		config.logfile = value;
-	// 	}
-	// }
-	// server_start(config);
 
 	return 0;
 
