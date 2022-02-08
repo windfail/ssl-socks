@@ -6,8 +6,7 @@
   "server" : "207.246.99.33",
   // server= 192.168.0.20
   "server_port" : 10230,
-  "cert" : "/etc/ssl-socks/yily.crt",
-  "key" : "/etc/ssl-socks/key.pem",
+  "cert" : "/etc/ssl-socks/client.crt",
+  "key" : "/etc/ssl-socks/client.key",
   "log" : "/var/log/tproxy.log",
-  "gfwlist" : "/etc/groxy_ssl/gfwlist"
 }

@@ -221,30 +221,41 @@ void ssl_relay::start_relay()
 {
     auto self(shared_from_this());
 	spawn_in_strand([this, self](asio::yield_context yield) {
+        int i = 0;
 		try {
 			if (type() != REMOTE_SERVER) {
                 auto[host, port] = remote();
+                auto msg = format("remote %1% port %2%")%host%port;
+                internal_log(msg.str());
 				auto re_hosts = _impl->_host_resolver.async_resolve(host, port, yield);
+                i++;
                 asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
+                i++;
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
 
 			_impl->_sock.async_handshake(
 				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
+            i++;
             if (type() == LOCAL_TRANSPARENT) {
                 // _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
                 // _impl->_local_udp.start_relay();
                 _impl->_local_udp->manager(std::static_pointer_cast<ssl_relay> (self));
                 _impl->_local_udp->start_relay();
+                i++;
             }
             start_send();
-			// start ssl read routine
+            i++;
+            // start ssl read routine
             _impl->impl_start_read();
+            i++;
             _impl->impl_start_timer();
+            i++;
             BOOST_LOG_TRIVIAL(info) << "ssl relay started";
 		} catch (boost::system::system_error& error) {
-            internal_log("connect:", error);
+            auto emsg=format("start_relay step %1%")%i;
+            internal_log(emsg.str(), error);
             internal_stop_relay();
 		}
 	});
