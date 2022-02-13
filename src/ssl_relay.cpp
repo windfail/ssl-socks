@@ -284,11 +284,15 @@ void ssl_relay::internal_stop_relay()
             _impl->_tcp_relays.clear();
             // close sock
             BOOST_LOG_TRIVIAL(info) << "ssl relay shutdown"<< self.use_count();
+            // boost::system::error_code ec;
+            // _impl->_sock.async_shutdown(yield[ec]);
             _impl->_sock.async_shutdown(yield);
             BOOST_LOG_TRIVIAL(info) << "ssl relay shutdown ok"<< self.use_count();
             _impl->_sock.lowest_layer().close();
             BOOST_LOG_TRIVIAL(info) << "ssl relay internal stop over"<< self.use_count();
-		} catch (boost::system::system_error& error) {
+        } catch (boost::system::system_error& error) {
+            _impl->_sock.lowest_layer().close();
+            BOOST_LOG_TRIVIAL(info) << "ssl relay stop"<< self.use_count() <<" error:"<< error.what();
         }
     });
 }
