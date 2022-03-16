@@ -124,7 +124,8 @@ void relay_server::local_udp_server_start()
                 BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
                 ssl_ptr->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
-				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
+				BOOST_LOG_TRIVIAL(error) << "local udp  error: "<<error.what();
+				throw error;
 			}
 		}
 	});
@@ -141,6 +142,7 @@ void relay_server::local_tcp_server_start()
                 _impl->impl_add_new_tcp(new_relay);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
+				throw error;
 			}
 		}
 	});
@@ -157,6 +159,7 @@ void relay_server::remote_server_start()
                 ssl_ptr->start_relay();
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
+				throw error;
 			}
 		}
 	});
