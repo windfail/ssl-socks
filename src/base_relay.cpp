@@ -26,7 +26,7 @@ base_relay::base_relay(asio::io_context &io, server_type type, const std::string
 }
 base_relay::~base_relay() = default;
 
-void base_relay::send_data(const std::shared_ptr<relay_data> &buf)
+void base_relay::send_data(const std::shared_ptr<relay_data> buf)
 {
     auto self(shared_from_this());
     run_in_strand([this, self, buf](){

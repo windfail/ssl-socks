@@ -125,7 +125,7 @@ static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
         dst_addr6->sin6_family = AF_INET6;
     }
 }
-std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
+std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
     uint8_t *data = (uint8_t*) buf->data_buffer().data();
     udp::endpoint re_addr(udp::v6(), 0);

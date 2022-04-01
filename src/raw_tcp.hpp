@@ -15,15 +15,15 @@ public:
 	tcp::socket & get_sock();
 	void start_relay();
 
-    void stop_raw_relay();
+	void stop_raw_relay();
 private:
-    struct tcp_impl;
-    std::unique_ptr<tcp_impl> _impl;
-    std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield);
-    void internal_stop_relay();
+	struct tcp_impl;
+	std::unique_ptr<tcp_impl> _impl;
+	std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield);
+	void internal_stop_relay();
 
 	void local_relay(bool dir);
-    void internal_log(const std::string &desc, const boost::system::system_error &error=system_error(error_code()));
+	void internal_log(const std::string &desc, const boost::system::system_error &error=system_error(error_code()));
 
 };
 

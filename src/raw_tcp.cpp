@@ -151,7 +151,7 @@ void raw_tcp::internal_stop_relay()
     }
 }
 
-std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
+std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
     // return async_write(_impl->_sock, buf->data_buffer(), yield);
     auto len = async_write(_impl->_sock, buf->data_buffer(), yield);

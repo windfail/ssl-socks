@@ -205,7 +205,7 @@ ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
     BOOST_LOG_TRIVIAL(info) << "ssl relay construct";
 }
 
-std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield)
+std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
     auto len = async_write(_impl->_sock, buf->buffers(), yield);
     if (len != buf->size()) {
@@ -300,7 +300,7 @@ void ssl_relay::internal_stop_relay()
 // add raw_tcp:
 // in local server: relay_server create and connect on raw_tcp, call with sess=0, ssl_relay create new session
 // in remote server: ssl_relay get TCP_CONNECT cmd with session, create new raw_tcp with session
-void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay, uint32_t sess, const std::string &host, const std::string &service)
+void ssl_relay::add_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay, uint32_t sess, const std::string &host, const std::string &service)
 {
     auto self(shared_from_this());
     run_in_strand([this, self, tcp_relay, sess, host, service]() {
@@ -378,7 +378,7 @@ void ssl_relay::internal_log(const std::string &desc, const boost::system::syste
     BOOST_LOG_TRIVIAL(error) << "ssl_relay "<<desc<<error.what();
 }
 
-void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> &buf)
+void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> buf)
 {
     auto self(shared_from_this());
     run_in_strand([this, self, src, buf]() {

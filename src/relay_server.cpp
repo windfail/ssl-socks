@@ -32,8 +32,8 @@ struct relay_server::server_impl
 	}
     ~server_impl() = default;
 
-    void impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp);
-    void impl_udp_recv(std::shared_ptr<relay_data> &buf, udp::endpoint &src);
+    void impl_add_new_tcp(const std::shared_ptr<raw_tcp> new_tcp);
+    void impl_udp_recv(std::shared_ptr<relay_data> buf, udp::endpoint &src);
 
     relay_config _config;
     asio::io_context &_io;
@@ -48,7 +48,7 @@ struct relay_server::server_impl
 
 // add new tcp relay to ssl relay
 // if no ssl relay, start new ssl connection
-void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> &new_tcp)
+void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> new_tcp)
 {
     auto ssl_ptr = _ssl.lock();
     if (ssl_ptr == nullptr) {
@@ -68,7 +68,7 @@ relay_server::relay_server(asio::io_context &io, const relay_config &config):
 relay_server::~relay_server() = default;
 
 // local udp server
-void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> &buf, udp::endpoint &src)
+void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> buf, udp::endpoint &src)
 {
     uint8_t ctrl_msg[128];
     // struct sockaddr_storage src;

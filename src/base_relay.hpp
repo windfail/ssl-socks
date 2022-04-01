@@ -26,7 +26,7 @@ public:
     {
         asio::spawn(_strand, func);
     }
-    void send_data(const std::shared_ptr<relay_data> &buf);
+    void send_data(const std::shared_ptr<relay_data> buf);
     void start_send();
 
     virtual void start_relay() = 0;
@@ -42,7 +42,7 @@ private:
     std::unique_ptr<base_impl> _impl;
     asio::strand<asio::io_context::executor_type> _strand;
 
-    virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> &buf, asio::yield_context &yield) = 0;
+    virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield) = 0;
     virtual void internal_stop_relay() = 0;
     virtual void internal_log(const std::string &desc, const system_error&error=system_error(error_code()));
 };

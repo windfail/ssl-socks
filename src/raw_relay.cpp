@@ -34,7 +34,7 @@ std::shared_ptr<ssl_relay> raw_relay::manager()
     }
     return val;
 }
-void raw_relay::manager(const std::shared_ptr<ssl_relay> &mngr)
+void raw_relay::manager(const std::shared_ptr<ssl_relay> mngr)
 {
     _impl->_manager = mngr;
 }
