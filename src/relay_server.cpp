@@ -91,7 +91,7 @@ void relay_server::server_impl::impl_udp_recv(std::shared_ptr<relay_data> buf, u
             ||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
             parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
             auto [host, port] = parse_address(buf->data_buffer().data(), 19);
-            BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
+            // BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
         //     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         //     dstaddr->ss_family = AF_INET;
         //     return 0;
@@ -121,7 +121,7 @@ void relay_server::local_udp_server_start()
                     _impl->_ssl = ssl_ptr;
                     ssl_ptr->start_relay();
                 }
-                BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
+                // BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
                 ssl_ptr->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local udp  error: "<<error.what();

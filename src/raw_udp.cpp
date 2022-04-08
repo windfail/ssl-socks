@@ -67,12 +67,12 @@ void raw_udp::udp_impl::impl_start_recv()
 raw_udp::raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src, const std::string &host, const std::string &service):
     raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io, src))
 {
-    BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
+    BOOST_LOG_TRIVIAL(info) << "raw udp construct ";
 }
 
 raw_udp::~raw_udp()
 {
-    BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
+    BOOST_LOG_TRIVIAL(info) << "raw udp destruct: "<<session();
 }
 
 void raw_udp::stop_raw_relay()
