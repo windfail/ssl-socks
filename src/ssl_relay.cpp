@@ -98,7 +98,7 @@ uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endp
         session = _session++;
         _srcs[src] = session;
     }
-    BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
+    // BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
     if (_owner->type() == REMOTE_SERVER) {
         auto relay = std::make_shared<raw_udp>(_io_context, _owner->type(), src);
         relay->session(session);
@@ -390,7 +390,7 @@ void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_da
         if (sess == 0) {
             sess = _impl->impl_add_raw_udp(0, src);
         }
-        BOOST_LOG_TRIVIAL(error) << "send udp data";
+        // BOOST_LOG_TRIVIAL(error) << "send udp data";
         buf->session(sess);
         _impl->_timeout[sess] = TIMEOUT_COUNT;
         send_data(buf);

@@ -109,11 +109,11 @@ void raw_tcp::tcp_impl::impl_start_read()
 raw_tcp::raw_tcp(asio::io_context &io, server_type type, const std::string &host, const std::string &service) :
     raw_relay(io, type, host, service), _impl(std::make_unique<tcp_impl> (this, io))
 {
-    // BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
+    BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }
 raw_tcp::~raw_tcp()
 {
-    // BOOST_LOG_TRIVIAL(info) << "raw tcp destruct: "<<session();
+    BOOST_LOG_TRIVIAL(info) << "raw tcp destruct: "<<session();
 }
 tcp::socket & raw_tcp::get_sock()
 {
@@ -155,7 +155,7 @@ std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf, a
 {
     // return async_write(_impl->_sock, buf->data_buffer(), yield);
     auto len = async_write(_impl->_sock, buf->data_buffer(), yield);
-    BOOST_LOG_TRIVIAL(info) << session() <<" tcp send from "<< _impl->_sock.local_endpoint()<<"to "<<_impl->_sock.remote_endpoint()<<"len "<<len;
+    // BOOST_LOG_TRIVIAL(info) << session() <<" tcp send from "<< _impl->_sock.local_endpoint()<<"to "<<_impl->_sock.remote_endpoint()<<"len "<<len;
     if (len != buf->data_size()) {
         auto emsg = boost::format("tcp %d relay len %1%, data size %2%")%session()%len % buf->size();
         throw_err_msg(emsg.str());
@@ -209,7 +209,7 @@ extern "C"
 void raw_tcp::tcp_impl::impl_start_transparent()
 {
     try {
-        BOOST_LOG_TRIVIAL(info) << _owner->session() <<" tcp start "<< _sock.local_endpoint()<<"from "<<_sock.remote_endpoint();
+        // BOOST_LOG_TRIVIAL(info) << _owner->session() <<" tcp start "<< _sock.local_endpoint()<<"from "<<_sock.remote_endpoint();
         auto buffer = std::make_shared<relay_data>(_owner->session(), relay_data::START_TCP);
         auto dst = _sock.local_endpoint();
         buffer->resize(parse_addr(buffer->data_buffer().data(), dst.data()));
@@ -250,7 +250,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 			}
 			auto data = (uint8_t*) & buf[3];
 			auto [host, port] = parse_address(data, len-3);
-			BOOST_LOG_TRIVIAL(info) << "resolve host " <<host <<" port "<<port ;
+			// BOOST_LOG_TRIVIAL(info) << "resolve host " <<host <<" port "<<port ;
             auto mngr = _owner->manager();
 			bool block = mngr->check_host_gfw(host);
 

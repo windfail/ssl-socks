@@ -67,12 +67,12 @@ void raw_udp::udp_impl::impl_start_recv()
 raw_udp::raw_udp(asio::io_context &io, server_type type, const udp::endpoint &src, const std::string &host, const std::string &service):
     raw_relay(io, type, host, service), _impl(std::make_unique<udp_impl>(this, io, src))
 {
-    // BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
+    BOOST_LOG_TRIVIAL(debug) << "raw udp construct ";
 }
 
 raw_udp::~raw_udp()
 {
-    // BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
+    BOOST_LOG_TRIVIAL(debug) << "raw udp destruct: "<<session();
 }
 
 void raw_udp::stop_raw_relay()
@@ -134,7 +134,7 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, a
         get_data_addr(data, re_addr);
         // bind sock to re_addr
 
-        BOOST_LOG_TRIVIAL(info) << session() <<"bind to udp "<< re_addr;
+        // BOOST_LOG_TRIVIAL(info) << session() <<"bind to udp "<< re_addr;
         if (_impl->_local != re_addr) {
             _impl->_local = re_addr;
             _impl->_sock.close();
@@ -149,7 +149,7 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, a
     }
 
     // send to _remote
-    BOOST_LOG_TRIVIAL(info) << session()<<" udp send to "<< *dst<< "local"<<_impl->_sock.local_endpoint();
+    // BOOST_LOG_TRIVIAL(info) << session()<<" udp send to "<< *dst<< "local"<<_impl->_sock.local_endpoint();
     // BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
     auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), *dst, yield);
     if (len != buf->udp_data_size()) {
