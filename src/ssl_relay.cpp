@@ -271,6 +271,7 @@ void ssl_relay::internal_stop_relay()
         is_stop(true);
         _impl->_timer.cancel();
         try{
+	        _impl->_local_udp->stop_raw_relay();
             // stop all raw relays
             for (auto &[session, relay]:_impl->_udp_relays) {
                 if (relay)
