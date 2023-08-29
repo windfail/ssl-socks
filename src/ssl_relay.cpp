@@ -39,8 +39,10 @@ struct ssl_relay::ssl_impl
 	ssl_socket _sock;
 	tcp::resolver _host_resolver;
     // _relays
-	std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _udp_relays;
-	std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _tcp_relays;
+	std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _relays;
+	// std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _udp_relays;
+	// std::unordered_map<uint32_t, std::shared_ptr<raw_relay>> _tcp_relays;
+
     std::map<udp::endpoint, uint32_t> _srcs;
 
     // udp relay timeout
@@ -75,7 +77,7 @@ void ssl_relay::ssl_impl::impl_start_timer()
                 if (timeout--)
                     continue;
                 //shutdown sess
-                auto relay = _udp_relays[sess];
+                auto relay = _relays[sess];
                 if ( relay )
                     relay->stop_raw_relay();
                 del.push_back(sess);
@@ -149,13 +151,10 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
 {
     auto session = buf->session();
     if ( buf->cmd() == relay_data::DATA_TCP) { // tcp data
-        auto relay = _tcp_relays[session];
-        if (relay) {
+        auto tcp_session = _tcp_relays.find(session);
+        if (tcp_session != _tcp_relays.end()) {
+            auto& [ignored, relay] = *tcp_session;
             relay->send_data(buf);
-        } else {
-            // tell remote stop TBD
-            _owner->ssl_stop_tcp_relay(session);
-            _tcp_relays.erase(session);
         }
     } else if (buf->cmd() == relay_data::DATA_UDP) {
         if (_owner->type() == LOCAL_TRANSPARENT) {
@@ -181,17 +180,6 @@ void ssl_relay::ssl_impl::impl_do_data(const std::shared_ptr<relay_data>& buf)
         }
         auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
         _owner->add_raw_tcp(nullptr, session, host, port);
-    } else if (buf->cmd() == relay_data::STOP_TCP) { // post stop to raw
-        auto relay = _tcp_relays[session];
-        if (relay)
-            relay->stop_raw_relay();
-        _tcp_relays.erase(session);
-    } else if (buf->cmd() == relay_data::STOP_UDP) { // post stop to raw
-        auto relay = _udp_relays[session];
-        if (relay)
-            relay->stop_raw_relay();
-        _udp_relays.erase(session);
-        _timeout.erase(session);
     }
 }
 
@@ -330,11 +318,12 @@ void ssl_relay::ssl_stop_tcp_relay(uint32_t session)
     auto self(shared_from_this());
     run_in_strand([this, self, session]()
     {
-        _impl->_tcp_relays.erase(session);
-        // send to ssl
-        // BOOST_LOG_TRIVIAL(info) << " send raw stop : "<<session;
-        auto buffer = std::make_shared<relay_data>(session, relay_data::STOP_TCP);
-        send_data(buffer);
+        auto relay = _impl->_tcp_relays.find(session);
+        if (relay != _impl->_tcp_relays.end()) {
+            _impl->_tcp_relays.erase(relay);
+        } else {
+            BOOST_LOG_TRIVIAL(error) << " ssl_relay stop tcp : erase non exist session"<<session;
+        }
     });
 }
 
@@ -345,10 +334,7 @@ void ssl_relay::ssl_stop_udp_relay(uint32_t session)
     {
         _impl->_udp_relays.erase(session);
         _impl->_timeout.erase(session);
-        // send to ssl
         // BOOST_LOG_TRIVIAL(info) << " send raw stop : "<<session;
-        auto buffer = std::make_shared<relay_data>(session, relay_data::STOP_UDP);
-        send_data(buffer);
     });
 }
 

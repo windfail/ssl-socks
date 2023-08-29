@@ -91,25 +91,19 @@ void raw_udp::stop_raw_relay()
 
 void raw_udp::internal_stop_relay()
 {
-    try{
-        if (is_stop())
-            return;
-        // BOOST_LOG_TRIVIAL(info) << "internal stop raw udp";
-        if (type() == LOCAL_TRANSPARENT) {
-            // do not stop, restart start_send
-            BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
-            _impl->_local = udp::endpoint();
-            start_send();
-            return;
-        }
-        stop_raw_relay();
-        auto mngr = manager();
-        auto buffer = std::make_shared<relay_data>(session(), relay_data::STOP_UDP);
-        mngr->send_data(buffer);
-        mngr->ssl_stop_udp_relay(session());
-    } catch (boost::system::system_error& error) {
-        BOOST_LOG_TRIVIAL(error) << session()<<" udp stop error: "<<error.what();
+    if (is_stop())
+        return;
+    // BOOST_LOG_TRIVIAL(info) << "internal stop raw udp";
+    if (type() == LOCAL_TRANSPARENT) {
+        // do not stop, restart start_send
+        BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
+        _impl->_local = udp::endpoint();
+        start_send();
+        return;
     }
+    stop_raw_relay();
+    auto mngr = manager();
+    mngr->ssl_stop_udp_relay(session());
 }
 static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
 {
