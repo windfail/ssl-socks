@@ -18,7 +18,7 @@ public:
 	void manager(const std::shared_ptr<ssl_relay> ssl_ptr);
 
 	// ssl relay call to stop raw relay
-	virtual void stop_raw_relay() = 0;
+	// virtual void stop_raw_relay() = 0;
 private:
 	struct raw_impl;
 	std::unique_ptr<raw_impl> _impl;

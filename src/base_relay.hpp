@@ -30,6 +30,7 @@ public:
     void start_send();
 
     virtual void start_relay() = 0;
+    virtual void stop_relay() = 0;
 protected:
     // void timeout_cancel();
     std::pair<std::string, std::string> remote();
@@ -42,8 +43,10 @@ private:
     std::unique_ptr<base_impl> _impl;
     asio::strand<asio::io_context::executor_type> _strand;
 
+    // internal_send_data
+    // actually send data on diferrent socket
     virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield) = 0;
-    virtual void internal_stop_relay() = 0;
+
     virtual void internal_log(const std::string &desc, const system_error&error=system_error(error_code()));
 };
 

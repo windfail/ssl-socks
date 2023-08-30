@@ -101,7 +101,7 @@ void raw_tcp::tcp_impl::impl_start_read()
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << _owner->session()<<" tcp raw read error: "<<error.what();
-            _owner->internal_stop_relay();
+            _owner->stop_relay();
 		}
 	});
 }
@@ -120,9 +120,12 @@ tcp::socket & raw_tcp::get_sock()
     return _impl->_sock;
 }
 
-void raw_tcp::stop_raw_relay()
+void raw_tcp::stop_relay()
 {
     auto self(shared_from_this());
+    // TBD tell manager ?
+    auto mngr = manager();
+    mngr->ssl_stop_tcp_relay(session());
     run_in_strand([this, self](){
         if (is_stop())
             return;
@@ -133,16 +136,6 @@ void raw_tcp::stop_raw_relay()
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);
     });
-}
-
-void raw_tcp::internal_stop_relay()
-{
-    if (is_stop())
-        return;
-    // BOOST_LOG_TRIVIAL(info) << "internal stop raw tcp"<<session();
-    stop_raw_relay();
-    auto mngr = manager();
-    mngr->ssl_stop_tcp_relay(session());
 }
 
 std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
@@ -188,7 +181,7 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 			}
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("local relay:", error);
-            _owner->internal_stop_relay();
+            _owner->stop_relay();
 		}
 	});
 }
@@ -214,7 +207,7 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         _owner->start_send();
     } catch (boost::system::system_error& error) {
         _owner->internal_log("tproxy start:", error);
-        _owner->internal_stop_relay();
+        _owner->stop_relay();
     }
 }
 
@@ -273,7 +266,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("local start:", error);
-            _owner->internal_stop_relay();
+            _owner->stop_relay();
 		}
 	});
 }
@@ -283,8 +276,6 @@ void raw_tcp::tcp_impl::impl_start_remote()
 	auto owner(_owner->shared_from_this());
     _owner->spawn_in_strand([this, owner](asio::yield_context yield) {
 		try {
-			// auto data = (uint8_t*) buf->data_buffer().data();
-			// auto len = buf->data_size();
 			auto[host, port] = _owner->remote();
 			auto re_hosts = _host_resolver.async_resolve(host, port, yield);
 			asio::async_connect(_sock, re_hosts, yield);
@@ -296,7 +287,7 @@ void raw_tcp::tcp_impl::impl_start_remote()
 
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("start remote :", error);
-            _owner->internal_stop_relay();
+            _owner->stop_relay();
 		}
 	});
 }

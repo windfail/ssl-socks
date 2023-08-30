@@ -1,8 +1,8 @@
-## TCP
+* TCP
 
   one connection(dst/src) one session
 
-### class tcp_server
+** class tcp_server
 
   1. create new raw_tcp
   2. accept on local connect
@@ -18,7 +18,7 @@
   1. new raw_tcp associate with session
   2. raw_tcp remote start(connect dst, start relay)
 
-### class raw_tcp
+*** class raw_tcp
 
   local:
   read data -> send to ssl_relay

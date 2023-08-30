@@ -1,0 +1,50 @@
+#+BEGIN_SRC dot :file class.svg :cmdline -Kdot -Tsvg
+digraph modules {
+  rankdir=LR
+  node[shape=box]
+  edge[style=dashed]
+  subgraph cluster_local {
+    label="local"
+    req[shape =cylinder label="Req\n(ssl_relay)"]
+    res[shape =cylinder label="Res\n(tcp/udp relay)"]
+
+    tcp_accept -> req[ label = "start tcp"]
+    udp_receive -> req[ label = "udp data"]
+    udp_send -> res[ dir=back label="udp data"]
+    tcp_relay -> req[ label = "tcp data"]
+    tcp_relay -> res[dir=back label = "tcp data"]
+
+    req -> ssl_relay
+    res -> ssl_relay[dir=back]
+
+  }
+
+  tcp_client[shape = oval]
+  udp_client[shape = oval]
+  tcp_client -> tcp_accept
+  tcp_client->tcp_relay[dir=both ]
+  udp_client -> udp_receive[]
+  udp_client->udp_send[dir=back ]
+
+  subgraph cluster_server {
+    label="server"
+    s_req[shape =cylinder label="Req"]
+    s_res[shape =tab label="relay table"]
+
+  }
+}
+#+END_SRC
+
+    # s_ssl_relay
+    #   s_ssl_relay_tcp[label="ssl_relay_tcp"]
+    #   s_raw_tcp[label="raw_tcp"]
+    #   s_relay_server[label="relay_server"]
+    #   s_ssl_relay_tcp -> s_raw_tcp[ label="create"]
+    #   s_ssl_relay_tcp -> s_raw_tcp[style=solid label="shared_ptr"]
+    #   s_raw_tcp -> s_ssl_relay_tcp[ label="weak_ptr"]
+    #   s_relay_server->s_ssl_relay_tcp[ label="create\nweak_ptr" constraint=false]
+
+    #   s_ssl_relay_udp->s_raw_udp[label="create"]
+    #   s_ssl_relay_udp -> s_raw_udp[style=solid label="shared_ptr"]
+    #   s_raw_udp -> s_ssl_relay_udp[ label="weak_ptr"]
+    #   s_relay_server->s_ssl_relay_udp[ label="create\nweak_ptr" constraint=false]

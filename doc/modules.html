@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2023-08-30 三 15:24 -->
+<!-- 2023-08-30 三 17:16 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>&lrm;</title>
@@ -242,143 +242,16 @@ for the JavaScript code in this tag.
 </head>
 <body>
 <div id="content">
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#org9b625a0">1. TCP</a>
-<ul>
-<li><a href="#orge170be2">1.1. class tcp<sub>server</sub></a>
-<ul>
-<li><a href="#org6429a8f">1.1.1. class raw<sub>tcp</sub></a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div>
-</div>
-<div id="outline-container-org9b625a0" class="outline-2">
-<h2 id="org9b625a0"><span class="section-number-2">1</span> TCP</h2>
-<div class="outline-text-2" id="text-1">
-<p>
-one connection(dst/src) one session
-</p>
-</div>
-
-<div id="outline-container-orge170be2" class="outline-3">
-<h3 id="orge170be2"><span class="section-number-3">1.1</span> class tcp<sub>server</sub></h3>
-<div class="outline-text-3" id="text-1-1">
-<ol class="org-ol">
-<li>create new raw<sub>tcp</sub></li>
-<li>accept on local connect</li>
-<li>add raw<sub>tcp</sub> to ssl<sub>relay</sub> and start new session</li>
-<li>goto 1</li>
-</ol>
-
-<p>
-ssl<sub>relay</sub> start new tcp session
-</p>
-<ol class="org-ol">
-<li>new session, associate with raw<sub>tcp</sub></li>
-<li>send start tcp to server</li>
-<li>raw<sub>tcp</sub> start relay</li>
-</ol>
-
-<p>
-ssl<sub>relay</sub> remote start
-</p>
-<ol class="org-ol">
-<li>new raw<sub>tcp</sub> associate with session</li>
-<li>raw<sub>tcp</sub> remote start(connect dst, start relay)</li>
-</ol>
-</div>
-
-<div id="outline-container-org6429a8f" class="outline-4">
-<h4 id="org6429a8f"><span class="section-number-4">1.1.1</span> class raw<sub>tcp</sub></h4>
-<div class="outline-text-4" id="text-1-1-1">
-<p>
-local:
-read data -&gt; send to ssl<sub>relay</sub>
-write data
-remote:
-connect to real remote
-read/write as local
-</p>
-
 
 <div class="figure">
 <p><object type="image/svg+xml" data="class.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
 </div>
-
-
-
-<div class="figure">
-<p><object type="image/svg+xml" data="tcp.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-</p>
-</div>
-
-
-<div class="figure">
-<p><object type="image/svg+xml" data="udp.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-</p>
-</div>
-
-
-<p>
-## UDP
-</p>
-
-<p>
-class udp<sub>server</sub>
-class raw<sub>udp</sub>
-local
-</p>
-<ol class="org-ol">
-<li>recvmsg</li>
-<li>find session with dst/src, if found, goto 4</li>
-<li>new session, send start udp by ssl<sub>relay</sub></li>
-<li>send session data</li>
-</ol>
-<p>
-remote
-</p>
-<ol class="org-ol">
-<li>connect to remote</li>
-<li>start remote relay(recv -&gt; send by ssl<sub>relay</sub>)</li>
-</ol>
-
-<p>
-send:
-  found dst in _relays, bind src addr
-  send data
-</p>
-
-<p>
-ssl<sub>relay</sub>
-  found relay in _relays, if not found, use default(raw<sub>udp</sub>)
-  local: read data, let raw<sub>udp</sub> send data back
-  remote: read data, found associate raw<sub>udp</sub> send data
-</p>
-
-
-<div class="figure">
-<p><object type="image/svg+xml" data="udpstartrelay.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
-</p>
-</div>
-</div>
-</div>
-</div>
-</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: YILY1-PC2069Y2</p>
-<p class="date">Created: 2023-08-30 三 15:24</p>
+<p class="date">Created: 2023-08-30 三 17:16</p>
 </div>
 </body>
 </html>

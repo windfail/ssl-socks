@@ -59,7 +59,7 @@ void raw_udp::udp_impl::impl_start_recv()
             }
         } catch (boost::system::system_error& error) {
             BOOST_LOG_TRIVIAL(error) << _owner->session()<<" udp raw read error: "<<error.what();
-            _owner->internal_stop_relay();
+            _owner->stop_relay();
         }
     });
 }
@@ -75,21 +75,7 @@ raw_udp::~raw_udp()
     BOOST_LOG_TRIVIAL(info) << "raw udp destruct: "<<session();
 }
 
-void raw_udp::stop_raw_relay()
-{
-    auto self(shared_from_this());
-    run_in_strand([this, self](){
-        if (is_stop()) return;
-        is_stop(true);
-        // call close socket
-        // BOOST_LOG_TRIVIAL(info) << "stop raw udp";
-        boost::system::error_code err;
-        _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
-        _impl->_sock.close(err);
-    });
-}
-
-void raw_udp::internal_stop_relay()
+void raw_udp::stop_relay()
 {
     if (is_stop())
         return;
@@ -101,9 +87,18 @@ void raw_udp::internal_stop_relay()
         start_send();
         return;
     }
-    stop_raw_relay();
     auto mngr = manager();
     mngr->ssl_stop_udp_relay(session());
+    auto self(shared_from_this());
+    run_in_strand([this, self](){
+        if (is_stop()) return;
+        is_stop(true);
+        // call close socket
+        // BOOST_LOG_TRIVIAL(info) << "stop raw udp";
+        boost::system::error_code err;
+        _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
+        _impl->_sock.close(err);
+    });
 }
 static void get_data_addr(const uint8_t *data, udp::endpoint &daddr)
 {
