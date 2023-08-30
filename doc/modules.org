@@ -1,40 +1,60 @@
-#+BEGIN_SRC dot :file class.svg :cmdline -Kdot -Tsvg
-digraph modules {
-  rankdir=LR
-  node[shape=box]
-  edge[style=dashed]
-  subgraph cluster_local {
-    label="local"
-    req[shape =cylinder label="Req\n(ssl_relay)"]
-    res[shape =cylinder label="Res\n(tcp/udp relay)"]
+#+BEGIN_SRC dot :file local.svg :cmdline -Kdot -Tsvg
+  digraph local {
+    rankdir=LR
+    node[shape=box]
+    edge[style=dashed]
+    subgraph cluster_local {
+      label="local"
+      req[shape =cylinder label="Req"]
+      res[shape =cylinder label="Res"]
 
-    tcp_accept -> req[ label = "start tcp"]
-    udp_receive -> req[ label = "udp data"]
-    udp_send -> res[ dir=back label="udp data"]
-    tcp_relay -> req[ label = "tcp data"]
-    tcp_relay -> res[dir=back label = "tcp data"]
+      tcp_accept -> req[ label = "start"]
+      udp_receive -> req[ label = "data"]
+      udp_send -> res[ dir=back label="data"]
+      tcp_relay -> req[ label = "data"]
+      tcp_relay -> res[dir=back label = "data"]
 
-    req -> ssl_relay
-    res -> ssl_relay[dir=back]
+      req -> ssl_relay
+      res -> ssl_relay[dir=back]
 
-  }
+    }
 
-  tcp_client[shape = oval]
-  udp_client[shape = oval]
-  tcp_client -> tcp_accept
-  tcp_client->tcp_relay[dir=both ]
-  udp_client -> udp_receive[]
-  udp_client->udp_send[dir=back ]
-
-  subgraph cluster_server {
-    label="server"
-    s_req[shape =cylinder label="Req"]
-    s_res[shape =tab label="relay table"]
+    tcp_client[shape = oval]
+    udp_client[shape = oval]
+    tcp_client -> tcp_accept
+    tcp_client->tcp_relay[dir=both ]
+    udp_client -> udp_receive[]
+    udp_client->udp_send[dir=back ]
 
   }
-}
 #+END_SRC
 
+#+BEGIN_SRC dot :file server.svg :cmdline -Kdot -Tsvg
+  digraph server {
+    rankdir=LR
+    node[shape=box]
+    edge[style=dashed]
+    subgraph cluster_server {
+      label="server"
+      req[shape =cylinder label="Req"]
+      res[shape =cylinder label="Res"]
+
+      req->ssl_relay
+      res-> ssl_relay[dir=back]
+      tcp_connect -> res[dir=back label="start"]
+      tcp_relay -> res[dir=back label ="data"]
+      tcp_relay -> req[label="data"]
+      udp_relay -> res[dir=back label = "data"]
+      udp_relay -> req[ label = "data"]
+
+    }
+    tcp_client[shape = oval]
+    udp_client[shape = oval]
+    tcp_client -> tcp_connect[dir=back]
+    tcp_client->tcp_relay[dir=both ]
+    udp_client->udp_relay[dir=both ]
+  }
+#+END_SRC
     # s_ssl_relay
     #   s_ssl_relay_tcp[label="ssl_relay_tcp"]
     #   s_raw_tcp[label="raw_tcp"]

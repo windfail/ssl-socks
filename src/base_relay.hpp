@@ -32,10 +32,8 @@ public:
     virtual void start_relay() = 0;
     virtual void stop_relay() = 0;
 protected:
-    // void timeout_cancel();
     std::pair<std::string, std::string> remote();
     server_type type();
-    // void stop_relay();
     bool is_stop(bool=false);
 
 private:
