@@ -18,7 +18,6 @@ public:
 	void manager_start();
 
 	void add_local_raw_tcp(const std::shared_ptr<raw_tcp> relay);
-	void add_remote_raw_tcp(const std::shared_ptr<raw_tcp> relay, uint32_t session, const std::string &host, const std::string &service);
 private:
 	struct manager_impl;
 	std::unique_ptr<manager_impl> _impl;

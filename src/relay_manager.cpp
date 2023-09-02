@@ -38,14 +38,13 @@ struct relay_manager::manager_impl
 	relay_state_t _state;
 
 	uint32_t _session = 1;
-	// void req_dispatch();
-	// void res_dispatch();
 	void stop_manager();
 	void analyze_res_data(const std::shared_ptr<relay_data>& buf);
 
 	void local_transparent_send_udp(const std::shared_ptr<relay_data>& buf);
 	void remote_server_send_udp(const std::shared_ptr<relay_data>& buf);
 	void remote_server_start_tcp(const std::shared_ptr<relay_data>& buf);
+	void add_remote_raw_tcp(uint32_t session, const std::string &host, const std::string &service);
 
 };
 
@@ -104,7 +103,7 @@ void relay_manager::manager_impl::remote_server_start_tcp(const std::shared_ptr<
 	}
 	auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
 	// TBD add new raw tcp
-	// _owner->add_raw_tcp(nullptr, session, host, port);
+	add_remote_raw_tcp(session, host, port);
 }
 void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 {
@@ -158,33 +157,36 @@ void relay_manager::manager_impl::stop_manager()
 //	// start timer check
 // }
 
-// // add raw_tcp:
-// // in local server: relay_server create and connect on raw_tcp, call with sess=0, ssl_relay create new session
-// // in remote server: ssl_relay get TCP_CONNECT cmd with session, create new raw_tcp with session
-// void relay_manager::add_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay, uint32_t sess, const std::string &host, const std::string &service)
-// {
-//	auto self(shared_from_this());
-//	run_in_strand(_impl->_strand, [this, self, tcp_relay, sess, host, service]() {
-//		auto relay = tcp_relay;
-//		auto session = sess;
-//		if (session == 0) { // create session from relay_server
-//			session = _impl->_session++;
-//			if (_impl->_relays.count(session)) {
-//				BOOST_LOG_TRIVIAL(error) << "relay session repeat: "<<session;
-//				// TBD error
-//				// internal_stop_relay();
-//				return;
-//			}
-//		} else { // remote create relay from ssl relay==nullptr
-//			relay = std::make_shared<raw_tcp> (_impl->_io_context, type(), host, service);
-//		}
-//		relay->session(session);
-//		relay->manager(std::static_pointer_cast<ssl_relay>(self));
-//		_impl->_tcp_relays[session] = relay;
+void relay_manager::manager_impl::add_remote_raw_tcp(uint32_t sess, const std::string &host, const std::string &service)
+{
 
-//		relay->start_relay();
-//	});
-// }
+	auto relay = std::make_shared<raw_tcp> (_io, _config, host, service);
+	relay->session = sess;
+	relay->manager = _owner->shared_from_this();
+	_relays[sess] = relay;
+	relay->start_relay();
+}
+// add raw_tcp:
+// in local server: relay_server create and connect on raw_tcp, call with sess=0, ssl_relay create new session
+// in remote server: ssl_relay get TCP_CONNECT cmd with session, create new raw_tcp with session
+void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
+{
+	auto self(shared_from_this());
+	run_in_strand(_impl->_strand, [this, self, tcp_relay]() {
+		auto relay = tcp_relay;
+		auto session = _impl->_session++;
+		if (_impl->_relays.count(session)) {
+			BOOST_LOG_TRIVIAL(error) << "relay session repeat: "<<session;
+			// TBD error
+			// internal_stop_relay();
+			return;
+		}
+		relay->session = session;
+		relay->manager = self;
+		_impl->_relays[session] = relay;
+		relay->start_relay();
+	});
+}
 
 // uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endpoint &src)
 // {
