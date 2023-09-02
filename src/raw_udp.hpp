@@ -23,6 +23,6 @@ private:
 	std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield);
 	// void internal_stop_relay();
 	// void local_relay(bool dir);
-	void internal_log(const std::string &desc, const system_error&error=system_error(error_code()));
+	void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));
 };
 #endif

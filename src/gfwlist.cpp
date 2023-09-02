@@ -16,8 +16,8 @@ namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
 void replace_string(std::string &orig, const std::string &src, const std::string &dest)
 {
-	auto pos = 0;
-	for (auto pos = 0; (pos = orig.find(src, pos)) != std::string::npos; ) {
+	// auto pos = 0;
+	for (auto pos = orig.find(src); pos != std::string::npos; pos = orig.find(src, pos)) {
 		orig.replace(pos, src.size(), dest);
 		pos += dest.size();
 	}

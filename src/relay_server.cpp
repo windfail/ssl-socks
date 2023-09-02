@@ -46,21 +46,6 @@ struct relay_server::server_impl
     std::weak_ptr<ssl_relay> _ssl;
 };
 
-// add new tcp relay to ssl relay
-// if no ssl relay, start new ssl connection
-void relay_server::server_impl::impl_add_new_tcp(const std::shared_ptr<raw_tcp> new_tcp)
-{
-    auto ssl_ptr = _ssl.lock();
-    if (ssl_ptr == nullptr) {
-        ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
-        _ssl = ssl_ptr;
-        // init and connect to remote
-        BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp new ssl";
-        ssl_ptr->start_relay();
-    }
-    BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp";
-    ssl_ptr->add_raw_tcp(new_tcp);
-}
 relay_server::relay_server(asio::io_context &io, const relay_config &config):
     _impl(std::make_unique<server_impl>(io, config))
 {
@@ -131,23 +116,6 @@ void relay_server::local_udp_server_start()
 	});
 }
 
-// local tcp server
-void relay_server::local_tcp_server_start()
-{
-    asio::spawn(_impl->_strand, [this](asio::yield_context yield) {
-		while (true) {
-			try {
-				auto new_relay = std::make_shared<raw_tcp> (_impl->_io, _impl->_config.type);
-				_impl->_acceptor.async_accept(new_relay->get_sock(), yield);
-                _impl->impl_add_new_tcp(new_relay);
-			} catch (boost::system::system_error& error) {
-				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
-				throw error;
-			}
-		}
-	});
-
-}
 
 void relay_server::remote_server_start()
 {

@@ -2,50 +2,45 @@
 #define _SSL_SOCKS_BASE_RELAY_HPP
 
 #include <memory>
-#include <boost/asio/spawn.hpp>
 #include "relay_data.hpp"
 #include "relay.hpp"
 
-using boost::system::system_error;
-using boost::system::error_code;
+// using namespace boost::system;
 
 class base_relay
-    : public std::enable_shared_from_this<base_relay>
+	: public std::enable_shared_from_this<base_relay>
 {
 public:
-    base_relay(asio::io_context &io, server_type type, const std::string &host, const std::string &service);
-    virtual ~base_relay();
-    // use dispatch to run in own strand
-    template<typename T> void run_in_strand(T &&func)
-    {
-        _strand.dispatch(func, asio::get_associated_allocator(func));
-    }
+	base_relay(asio::io_context &io, const relay_config &config);
+	virtual ~base_relay();
+	void send_data(const std::shared_ptr<relay_data> buf);
+	void start_send();
 
-    // spawn coroutin in own strand
-    template<typename T> void spawn_in_strand(T &&func)
-    {
-        asio::spawn(_strand, func);
-    }
-    void send_data(const std::shared_ptr<relay_data> buf);
-    void start_send();
+	virtual void start_relay() = 0;
+	virtual void stop_relay() = 0;
+	relay_state_t get_state();
 
-    virtual void start_relay() = 0;
-    virtual void stop_relay() = 0;
+	void set_alive(bool);
+	bool alive();
+	void timeout_down();
+
+	std::weak_ptr<relay_manager> manager;
+	const relay_config &config;
+	asio::io_context &io;
+	asio::strand<asio::io_context::executor_type> strand;
 protected:
-    std::pair<std::string, std::string> remote();
-    server_type type();
-    bool is_stop(bool=false);
+	std::pair<std::string, std::string> remote();
+	server_type type();
 
 private:
-    struct base_impl;
-    std::unique_ptr<base_impl> _impl;
-    asio::strand<asio::io_context::executor_type> _strand;
+	struct base_impl;
+	std::unique_ptr<base_impl> _impl;
 
-    // internal_send_data
-    // actually send data on diferrent socket
-    virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield) = 0;
+	// internal_send_data
+	// actually send data on diferrent socket
+	virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield) = 0;
 
-    virtual void internal_log(const std::string &desc, const system_error&error=system_error(error_code()));
+	virtual void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));
 };
 
 #endif

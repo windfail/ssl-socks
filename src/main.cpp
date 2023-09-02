@@ -115,6 +115,7 @@ relay_config get_config(json &jconf)
         config.remote_port = (boost::format("%1%")%r_port).str();
         config.remote_ip = jconf["server"].get<std::string>();
         config.gfw_file = jconf.value("gfwlist", "/etc/ssl-socks/gfwlist");
+        config.gfw.load_list(config.gfw_file);
     }
     config.cert = jconf["cert"].get<std::string>();
     config.key = jconf["key"].get<std::string>();

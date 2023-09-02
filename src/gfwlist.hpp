@@ -9,11 +9,11 @@
 class gfw_list
 {
 public:
-	gfw_list(const std::string &file)
+	gfw_list(const std::string &file="")
 		{
 			load_list(file);
 		}
-	bool is_blocked(const std::string &host);
+	bool is_blocked(const std::string &host) const;
 
 	int add_host(const std::string &host);
 //	void save_list(const std::string &file, const std::string & white, const std::string & block);

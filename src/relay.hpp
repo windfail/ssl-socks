@@ -9,6 +9,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/asio/spawn.hpp>
+#include "gfwlist.hpp"
 
 namespace asio = boost::asio;
 
@@ -32,16 +34,23 @@ class raw_udp;
 
 class ssl_relay;
 
+class relay_manager;
+
 enum server_type {
 	LOCAL_SERVER,
 	REMOTE_SERVER,
 	LOCAL_TRANSPARENT
 };
 
+typedef enum {
+	RELAY_INIT,
+	RELAY_START,
+	RELAY_STOP,
+} relay_state_t;
 struct relay_config
 {
 	int local_port = 10230;
-    std::string remote_port = "10230";
+	std::string remote_port = "10230";
 	std::string remote_ip = "";
 	int thread_num = 1;
 	server_type type = LOCAL_SERVER;
@@ -49,6 +58,7 @@ struct relay_config
 	std::string key = "/etc/groxy_ssl/groxy_ssl.pem";
 	std::string logfile = "/dev/null";
 	std::string gfw_file = "/etc/groxy_ssl/gfwlist";
+	gfw_list gfw;
 
 };
 
@@ -60,5 +70,12 @@ inline void throw_err_msg(const std::string &msg)
 std::pair<std::string, std::string> parse_address(void *data, std::size_t len);
 
 std::size_t parse_addr(void *pdata, void*addr);
+
+// use dispatch to run in own strand
+template<typename T>
+inline void run_in_strand(asio::strand<asio::io_context::executor_type> &own_strand, T &&func)
+{
+	own_strand.dispatch(func, asio::get_associated_allocator(func));
+}
 
 #endif
