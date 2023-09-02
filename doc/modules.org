@@ -55,16 +55,20 @@
     udp_client->udp_relay[dir=both ]
   }
 #+END_SRC
-    # s_ssl_relay
-    #   s_ssl_relay_tcp[label="ssl_relay_tcp"]
-    #   s_raw_tcp[label="raw_tcp"]
-    #   s_relay_server[label="relay_server"]
-    #   s_ssl_relay_tcp -> s_raw_tcp[ label="create"]
-    #   s_ssl_relay_tcp -> s_raw_tcp[style=solid label="shared_ptr"]
-    #   s_raw_tcp -> s_ssl_relay_tcp[ label="weak_ptr"]
-    #   s_relay_server->s_ssl_relay_tcp[ label="create\nweak_ptr" constraint=false]
 
-    #   s_ssl_relay_udp->s_raw_udp[label="create"]
-    #   s_ssl_relay_udp -> s_raw_udp[style=solid label="shared_ptr"]
-    #   s_raw_udp -> s_ssl_relay_udp[ label="weak_ptr"]
-    #   s_relay_server->s_ssl_relay_udp[ label="create\nweak_ptr" constraint=false]
+#+BEGIN_SRC dot :file owner.svg :cmdline -Kdot -Tsvg
+  digraph objects {
+    rankdir=LR
+    node[shape=box]
+    edge[style=dashed]
+    acceptor -> manager[style=solid]
+    manager -> ssl_relay[style=solid]
+    manager -> tcp_relay[style=solid]
+    manager -> udp_relay[style=solid]
+    manager -> udp_send[style=solid]
+    udp_receive -> manager[style=solid]
+    udp_relay -> manager
+    tcp_relay -> manager
+    ssl_relay -> manager
+  }
+#+END_SRC
