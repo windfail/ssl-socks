@@ -14,20 +14,29 @@ std::pair<std::string, std::string> parse_address(void *buf, std::size_t len);
 struct raw_tcp::tcp_impl
 {
     explicit tcp_impl(raw_tcp *owner, asio::io_context &io) :
-        _owner(owner), _sock(io),
-        // _type(type),
-        // _host_resolver(io),
-        _sock_remote(io)
-        // _strand(io.get_executor())
+        _owner(owner), _sock(io), _sock_remote(io)
+    {}
+	explicit tcp_impl(raw_tcp *owner, asio::io_context &io, const std::string &host, const std::string &service) :
+        _owner(owner), _sock(io), _sock_remote(io),
+        _dst_host(host), _dst_service(service)
     {}
 
     raw_tcp *_owner;
+
+	// main tcp sock
+	// for local server, read/write from local client
+	// for remote server, read/write with real remote dst
 	tcp::socket _sock;
-    // server_type _type;
-	// tcp::resolver _host_resolver;
+
+	// sock remote for local server only, used for non block requests, raw tcp direct connect to real remote dst, not through ssl
 	tcp::socket _sock_remote;
+
 	std::string local_buf;
 	std::string remote_buf;
+
+	// remote real dst/service
+	std::string _dst_host;
+	std::string _dst_service;
 
     void impl_start_read();
     void impl_start_local();
@@ -49,6 +58,9 @@ void raw_tcp::tcp_impl::impl_start_read()
 				// post to manager
 				buf->resize(len);
 				auto mngr = _owner->manager.lock();
+				if (mngr == nullptr) {
+					// TBD should not happen
+				}
                 mngr->add_request(buf);
 			}
 		} catch (boost::system::system_error& error) {
@@ -64,9 +76,8 @@ raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config) :
     BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }
 raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config, const std::string &host, const std::string &service) :
-    raw_relay(io, config), _impl(std::make_unique<tcp_impl> (this, io))
+	raw_relay(io, config), _impl(std::make_unique<tcp_impl> (this, io, host, service))
 {
-	// TBD remote tcp_relay construct
     BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }
 raw_tcp::~raw_tcp()
@@ -155,6 +166,9 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         buffer->resize(parse_addr(buffer->data_buffer().data(), dst.data()));
 //	BOOST_LOG_TRIVIAL(info) << " send start remote data: \n" << buf_to_string(buffer->data_buffer().data(), buffer->data_buffer().size());
         auto mngr = _owner-> manager.lock();
+        if (mngr == nullptr) {
+	        //TBD should not happen!!
+        }
         mngr->add_request(buffer);
         impl_start_read();
         _owner->start_send();
@@ -225,14 +239,14 @@ void raw_tcp::tcp_impl::impl_start_local()
 	});
 }
 
+// start remote raw_tcp, connect to real dst
 void raw_tcp::tcp_impl::impl_start_remote()
 {
 	auto owner(_owner->shared_from_this());
 	asio::spawn(_owner->strand, [this, owner](asio::yield_context yield) {
 		try {
-			auto[host, port] = _owner->remote();
 			tcp::resolver _host_resolver(_owner->io);
-			auto re_hosts = _host_resolver.async_resolve(host, port, yield);
+			auto re_hosts = _host_resolver.async_resolve(_dst_host, _dst_service, yield);
 			asio::async_connect(_sock, re_hosts, yield);
             // BOOST_LOG_TRIVIAL(info) << "raw_tcp connect to "<<host<<port;
 
@@ -254,7 +268,7 @@ void raw_tcp::start_relay()
         [this]() {_impl->impl_start_transparent();},
     };
     // run_relay[_impl->_type]();
-    run_relay[type()]();
+    run_relay[config.type]();
 }
 void raw_tcp::internal_log(const std::string &desc, const boost::system::system_error&error)
 {

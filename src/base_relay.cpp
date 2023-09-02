@@ -42,6 +42,7 @@ void base_relay::start_send()
     auto self(shared_from_this());
     asio::spawn(strand, [this, self](asio::yield_context yield){
         try {
+	        asio::steady_timer timer(io);
 	        while (true) {
 		        while (!_impl->_bufs.empty()) {
 			        auto buf = _impl->_bufs.front();
@@ -50,6 +51,13 @@ void base_relay::start_send()
 			        internal_send_data(buf, yield);
 		        }
 		        // add timer
+		        timer.expires_after(std::chrono::milliseconds(10));
+		        boost::system::error_code err;
+		        timer.async_wait(yield[err]);
+		        if (err == asio::error::operation_aborted) {
+			        // TBD timer stoped
+			        return;
+		        }
 	        }
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
@@ -72,6 +80,9 @@ void base_relay::set_alive(bool alive)
 }
 void base_relay::timeout_down()
 {
+	if (_impl->_timeout == 0) {
+		return ;
+	}
 	_impl->_timeout--;
 }
 // std::pair<std::string, std::string> base_relay::remote()

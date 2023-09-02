@@ -46,6 +46,7 @@ struct relay_manager::manager_impl
 	void remote_server_start_tcp(const std::shared_ptr<relay_data>& buf);
 	void add_remote_raw_tcp(uint32_t session, const std::string &host, const std::string &service);
 
+	void start_timer();
 };
 
 relay_manager::relay_manager(asio::io_context &io, const relay_config &config):
@@ -95,14 +96,13 @@ void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<r
 }
 void relay_manager::manager_impl::remote_server_start_tcp(const std::shared_ptr<relay_data>& buf)
 {
-	// TBD
 	auto session = buf->session();
 	auto &relay = _relays[session];
 	if (relay != nullptr) {
+		// TBD repeat session
 		relay->stop_relay();
 	}
 	auto[host, port] = parse_address(buf->data_buffer().data(), buf->data_size());
-	// TBD add new raw tcp
 	add_remote_raw_tcp(session, host, port);
 }
 void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
@@ -139,23 +139,38 @@ void relay_manager::manager_impl::stop_manager()
 }
 
 
-// void relay_manager::manager_start()
-// {
-//	if (_impl->_config.type == LOCAL_TRANSPARENT || _impl->_config.type == LOCAL_SERVER) {
-//		local_accept();
-//		// TBD
-//		// local_udp_receive();
-//		// TBD
-//		// local_udp_send();
-//	} else if (_impl->_config.type == REMOTE_SERVER) { //TBD remote
-
-//	}
-//	_impl->req_dispatch();
-//	_impl->res_dispatch();
-
-//	// TBD
-//	// start timer check
-// }
+void relay_manager::manager_impl::start_timer()
+{
+	auto owner(_owner->shared_from_this());
+	asio::spawn(_strand, [this, owner](asio::yield_context yield) {
+		asio::steady_timer timer(_io);
+		while (true) {
+			timer.expires_after(std::chrono::seconds(RELAY_TICK));
+			boost::system::error_code err;
+			timer.async_wait(yield[err]);
+			if (err == asio::error::operation_aborted) {
+				return;
+			}
+			for (auto &[sess, relay]:_relays) {
+				if (relay) {
+					relay->timeout_down();
+					if (!relay->alive()) {
+						relay->stop_relay();
+						//TBD remove sess
+					}
+				}
+			}
+			_ssl->timeout_down();
+			if (!_ssl->alive()) {
+				_ssl->stop_relay();
+				_ssl = nullptr;
+				if (_config.type == REMOTE_SERVER) {
+					return;
+				}
+			}
+		}
+	});
+}
 
 void relay_manager::manager_impl::add_remote_raw_tcp(uint32_t sess, const std::string &host, const std::string &service)
 {
@@ -177,8 +192,7 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 		auto session = _impl->_session++;
 		if (_impl->_relays.count(session)) {
 			BOOST_LOG_TRIVIAL(error) << "relay session repeat: "<<session;
-			// TBD error
-			// internal_stop_relay();
+			// TBD should not happen
 			return;
 		}
 		relay->session = session;
@@ -195,16 +209,3 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 //         _srcs[src] = session;
 //     }
 //     // BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
-//     if (_owner->type() == REMOTE_SERVER) {
-//         auto relay = std::make_shared<raw_udp>(_io_context, _owner->type(), src);
-//         relay->session(session);
-//         relay->manager(std::static_pointer_cast<ssl_relay> (_owner->shared_from_this()));
-//         relay->start_relay();
-//         _udp_relays[session] = relay;
-//     } else {
-//         // _local_udp.add_peer(session, src);
-//         _local_udp->add_peer(session, src);
-//     }
-//     _timeout[session] = TIMEOUT_COUNT;
-//     return session;
-// }

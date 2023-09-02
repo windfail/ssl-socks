@@ -11,98 +11,39 @@
 #include "raw_tcp.hpp"
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
-#include "gfwlist.hpp"
+#include "relay_manager.hpp"
 
 using boost::format;
 
-ssl::context init_ssl(const relay_config &config);
+static ssl::context init_ssl(const relay_config &config);
 // ok begin common ssl relay functions
-std::string buf_to_string(void *buf, std::size_t size);
 
 struct ssl_relay::ssl_impl
 {
     ssl_impl(ssl_relay *owner, asio::io_context &io, const relay_config &config):
-        _owner(owner),
+	    _owner(owner),
          _ctx(init_ssl(config)),
-		_sock(io, _ctx),
-        _host_resolver(io),
+		_sock(io, _ctx)
     {}
     ~ssl_impl() = default;
 
     ssl_relay *_owner;
 	ssl::context _ctx;
 	ssl_socket _sock;
-	tcp::resolver _host_resolver;
     // _relays
 
     std::map<udp::endpoint, uint32_t> _srcs;
 
     // udp relay timeout
-	// std::unordered_map<uint32_t, int> _timeout;
-    // int _ssl_timeout = TIMEOUT_COUNT;
     // std::shared_ptr<raw_udp> _local_udp;
     // raw_udp _local_udp;
 
-
-    // void impl_do_data(const std::shared_ptr<relay_data>& buf);
     void impl_start_read();
 
     uint32_t impl_add_raw_udp(uint32_t session, const udp::endpoint &src=udp::endpoint());
     void impl_start_timer();
 };
-// void ssl_relay::ssl_impl::impl_start_timer()
-// {
-//     auto owner(_owner->shared_from_this());
-//     _owner->asio::spawn(owner->_strand, [this, owner](asio::yield_context yield) {
-//         while (true) {
-//             _timer.expires_after(std::chrono::seconds(RELAY_TICK));
-//             boost::system::error_code err;
-//             _timer.async_wait(yield[err]);
-//             if (err == asio::error::operation_aborted) {
-//                 return;
-//             }
-//             std::vector<uint32_t> del;
-//             for (auto &[sess, timeout] : _timeout) {
-//                 if (timeout--)
-//                     continue;
-//                 //shutdown sess
-//                 auto relay = _relays[sess];
-//                 if ( relay )
-//                     relay->stop_raw_relay();
-//                 del.push_back(sess);
-//             }
-//             for (auto sess:del)
-//                 _owner->ssl_stop_udp_relay(sess);
-//             if (_ssl_timeout-- == 0) {
-//                 // ssl timeout
-//                 BOOST_LOG_TRIVIAL(info) << "ssl timeout, stop";
-//                 _owner->internal_stop_relay();
-//                 return;
-//             }
-//         }
-//     });
-// }
 
-uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endpoint &src)
-{
-    if (session == 0) {
-        session = _session++;
-        _srcs[src] = session;
-    }
-    // BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
-    if (_owner->type() == REMOTE_SERVER) {
-        auto relay = std::make_shared<raw_udp>(_io_context, _owner->type(), src);
-        relay->session(session);
-        relay->manager(std::static_pointer_cast<ssl_relay> (_owner->shared_from_this()));
-        relay->start_relay();
-        _udp_relays[session] = relay;
-    } else {
-        // _local_udp.add_peer(session, src);
-        _local_udp->add_peer(session, src);
-    }
-    _timeout[session] = TIMEOUT_COUNT;
-    return session;
-}
 void ssl_relay::ssl_impl::impl_start_read()
 {
     auto owner(_owner->shared_from_this());
@@ -127,8 +68,11 @@ void ssl_relay::ssl_impl::impl_start_read()
 					}
 				}
 				owner->set_alive(true);
-				// TBD send data to manager res
-				// impl_do_data(buf);
+				auto mngr = owner->manager.lock();
+				if (mngr == nullptr) {
+					// TBD should not happen
+				}
+				mngr->add_response(buf);
 			}
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("read:", error);
@@ -163,42 +107,36 @@ void ssl_relay::start_relay()
 {
     auto self(shared_from_this());
     asio::spawn(strand, [this, self](asio::yield_context yield) {
-        int i = 0;
 		try {
-			if (type() != REMOTE_SERVER) {
-                auto[host, port] = remote();
+			if (config.type != REMOTE_SERVER) {
+				auto & host = config.remote_ip;
+				auto & port = config.remote_port;
                 auto msg = format("remote %1% port %2%")%host%port;
                 internal_log(msg.str());
-				auto re_hosts = _impl->_host_resolver.async_resolve(host, port, yield);
-                i++;
+                tcp::resolver host_resolver(io);
+				auto re_hosts = host_resolver.async_resolve(host, port, yield);
                 asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
-                i++;
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
 
 			_impl->_sock.async_handshake(
-				type() == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
+				config.type == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
 				yield);
-            i++;
-            if (type() == LOCAL_TRANSPARENT) {
-                // _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
-                // _impl->_local_udp.start_relay();
-                _impl->_local_udp->manager(std::static_pointer_cast<ssl_relay> (self));
-                _impl->_local_udp->start_relay();
-                i++;
-            }
+			// TBD local transparent udp
+            // if (type() == LOCAL_TRANSPARENT) {
+            //     // _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
+            //     // _impl->_local_udp.start_relay();
+            //     _impl->_local_udp->manager(std::static_pointer_cast<ssl_relay> (self));
+            //     _impl->_local_udp->start_relay();
+            // }
             start_send();
-            i++;
             // start ssl read routine
             _impl->impl_start_read();
-            i++;
-            _impl->impl_start_timer();
-            i++;
             BOOST_LOG_TRIVIAL(info) << "ssl relay started";
 		} catch (boost::system::system_error& error) {
-            auto emsg=format("start_relay step %1%")%i;
+            auto emsg=format("ssl start_relay : ");
             internal_log(emsg.str(), error);
-            internal_stop_relay();
+            stop_relay();
 		}
 	});
 }
@@ -222,32 +160,6 @@ void ssl_relay::stop_relay()
             _impl->_sock.lowest_layer().close();
             BOOST_LOG_TRIVIAL(info) << "ssl relay stop"<< self.use_count() <<" error:"<< error.what();
         }
-    });
-}
-
-
-void ssl_relay::ssl_stop_tcp_relay(uint32_t session)
-{
-    auto self(shared_from_this());
-    run_in_strand([this, self, session]()
-    {
-        auto relay = _impl->_tcp_relays.find(session);
-        if (relay != _impl->_tcp_relays.end()) {
-            _impl->_tcp_relays.erase(relay);
-        } else {
-            BOOST_LOG_TRIVIAL(error) << " ssl_relay stop tcp : erase non exist session"<<session;
-        }
-    });
-}
-
-void ssl_relay::ssl_stop_udp_relay(uint32_t session)
-{
-    auto self(shared_from_this());
-    run_in_strand([this, self, session]()
-    {
-        _impl->_udp_relays.erase(session);
-        _impl->_timeout.erase(session);
-        // BOOST_LOG_TRIVIAL(info) << " send raw stop : "<<session;
     });
 }
 
@@ -276,8 +188,8 @@ void ssl_relay::internal_log(const std::string &desc, const boost::system::syste
 void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> buf)
 {
     auto self(shared_from_this());
-    run_in_strand([this, self, src, buf]() {
-        if (is_stop()) {
+    run_in_strand(strand, [this, self, src, buf]() {
+        if (!alive()) {
             BOOST_LOG_TRIVIAL(error) << "ssl send udp on stop";
             return;
         }
@@ -287,7 +199,6 @@ void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_da
         }
         // BOOST_LOG_TRIVIAL(error) << "send udp data";
         buf->session(sess);
-        _impl->_timeout[sess] = TIMEOUT_COUNT;
         send_data(buf);
     });
 }

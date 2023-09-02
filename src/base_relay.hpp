@@ -28,9 +28,6 @@ public:
 	const relay_config &config;
 	asio::io_context &io;
 	asio::strand<asio::io_context::executor_type> strand;
-protected:
-	std::pair<std::string, std::string> remote();
-	server_type type();
 
 private:
 	struct base_impl;

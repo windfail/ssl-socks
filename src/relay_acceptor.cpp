@@ -1,6 +1,7 @@
 #include "relay_acceptor.hpp"
 #include "relay_manager.hpp"
 #include "raw_tcp.hpp"
+#include "ssl_relay.hpp"
 
 using namespace std;
 
@@ -42,7 +43,23 @@ relay_acceptor::relay_acceptor(asio::io_context &io, const relay_config &config)
 }
 relay_acceptor::~relay_acceptor() = default;
 
+void relay_acceptor::acceptor_impl::remote_accept()
+{
+	asio::spawn(_strand, [this](asio::yield_context yield) {
+		while (true) {
+			try {
+				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
+				_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
+				ssl_ptr->start_relay();
+			} catch (boost::system::system_error& error) {
+				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
+				throw error;
+			}
+		}
+	});
 
+
+}
 void relay_acceptor::acceptor_impl::local_accept()
 {
 	asio::spawn(_strand, [this](asio::yield_context yield) {
