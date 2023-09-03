@@ -75,11 +75,11 @@ void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_p
 {
 	// TBD
 // send udp
-	auto udp_send = _relays[1];
-	if (!udp_send->alive()) {
+	auto udp_send = _relays[0];
+	if (udp_send->state == RELAY_STOP) {
 		// TBD
 		// some error occur, create new udp_send
-		// _impl->_relays[1] = new_udp_send();
+		// _impl->_relays[0] = new_udp_send();
 	}
 	udp_send->send_data(buf);
 }
@@ -87,7 +87,7 @@ void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<r
 {
 	auto session = buf->session();
 	auto &relay = _relays[session];
-	if (relay == nullptr || !relay->alive()) {
+	if (relay == nullptr || relay->state == RELAY_STOP) {
 		// TBD add new raw_udp and send_data
 		// relay = impl_add_raw_udp(session);
 	}
@@ -154,19 +154,13 @@ void relay_manager::manager_impl::start_timer()
 			for (auto &[sess, relay]:_relays) {
 				if (relay) {
 					relay->timeout_down();
-					if (!relay->alive()) {
-						relay->stop_relay();
-						//TBD remove sess
-					}
 				}
 			}
-			_ssl->timeout_down();
-			if (!_ssl->alive()) {
-				_ssl->stop_relay();
-				_ssl = nullptr;
-				if (_config.type == REMOTE_SERVER) {
-					return;
-				}
+			// TBD remove timeout relays
+
+			if (_ssl->timeout_down() == 0) {
+				if (_config.type == REMOTE_SERVER)
+					stop_manager();
 			}
 		}
 	});
@@ -209,3 +203,8 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 //         _srcs[src] = session;
 //     }
 //     // BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
+
+void relay_manager::manager_start()
+{
+	_impl->start_timer();
+}

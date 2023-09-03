@@ -62,6 +62,7 @@ void raw_tcp::tcp_impl::impl_start_read()
 					// TBD should not happen
 				}
                 mngr->add_request(buf);
+                _owner->reset_timeout();
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << _owner->session<<" tcp raw read error: "<<error.what();
@@ -95,7 +96,7 @@ void raw_tcp::stop_relay()
     run_in_strand(strand, [this, self](){
         // call close socket
         // BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
-	    set_alive(false);
+	    state = RELAY_STOP;
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
         _impl->_sock.close(err);

@@ -67,7 +67,7 @@ void ssl_relay::ssl_impl::impl_start_read()
                         throw_err_msg(emsg.str());
 					}
 				}
-				owner->set_alive(true);
+				owner->reset_timeout();
 				auto mngr = owner->manager.lock();
 				if (mngr == nullptr) {
 					// TBD should not happen
@@ -93,7 +93,7 @@ ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
 
 std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
-	set_alive(true);
+	reset_timeout();
     auto len = async_write(_impl->_sock, buf->buffers(), yield);
     if (len != buf->size()) {
         auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
@@ -146,7 +146,7 @@ void ssl_relay::stop_relay()
     auto self(shared_from_this());
     asio::spawn(strand, [this, self](asio::yield_context yield) {
         // BOOST_LOG_TRIVIAL(info) << "ssl relay internal stop"<< self.use_count() << is_stop();
-	    set_alive(false);
+	    state = RELAY_STOP;
         try{
             // close sock
             BOOST_LOG_TRIVIAL(info) << "ssl relay shutdown"<< self.use_count();
@@ -189,7 +189,7 @@ void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_da
 {
     auto self(shared_from_this());
     run_in_strand(strand, [this, self, src, buf]() {
-        if (!alive()) {
+        if (state == RELAY_STOP) {
             BOOST_LOG_TRIVIAL(error) << "ssl send udp on stop";
             return;
         }

@@ -18,7 +18,7 @@ base_relay::base_relay(asio::io_context &io, const relay_config &conf):
 	// _strand(io.get_executor()),
 	config(conf),
 	io(io),
-	strand(io.get_executor()),
+	strand(io.get_executor()), state(RELAY_INIT),
     _impl(std::make_unique<base_impl>())
 {
 }
@@ -28,13 +28,13 @@ void base_relay::send_data(const std::shared_ptr<relay_data> buf)
 {
     auto self(shared_from_this());
     run_in_strand(strand, [this, self, buf](){
-        if (_impl->_timeout == 0) {
+        if (state == RELAY_STOP) {
             auto msg =boost::format("send data on stopped");
             internal_log(msg.str());
             return;
         }
         _impl->_bufs.push(buf);
-        set_alive(true);
+        reset_timeout();
     });
 }
 void base_relay::start_send()
@@ -42,6 +42,7 @@ void base_relay::start_send()
     auto self(shared_from_this());
     asio::spawn(strand, [this, self](asio::yield_context yield){
         try {
+	        state = RELAY_START;
 	        asio::steady_timer timer(io);
 	        while (true) {
 		        while (!_impl->_bufs.empty()) {
@@ -58,6 +59,7 @@ void base_relay::start_send()
 			        // TBD timer stoped
 			        return;
 		        }
+		        if (state == RELAY_STOP) return;
 	        }
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
@@ -70,20 +72,16 @@ void base_relay::internal_log(const std::string &desc, const boost::system::syst
     BOOST_LOG_TRIVIAL(error) <<"base_relay "<< desc<<error.what();
 }
 
-bool base_relay::alive()
+void base_relay::reset_timeout()
 {
-	return _impl->_timeout != 0;
+	_impl->_timeout = TIMEOUT;
 }
-void base_relay::set_alive(bool alive)
+int base_relay::timeout_down()
 {
-	_impl->_timeout = alive ? TIMEOUT : 0;
-}
-void base_relay::timeout_down()
-{
-	if (_impl->_timeout == 0) {
-		return ;
+	if (--_impl->_timeout == 0) {
+		stop_relay();
 	}
-	_impl->_timeout--;
+	return _impl->_timeout;
 }
 // std::pair<std::string, std::string> base_relay::remote()
 // {

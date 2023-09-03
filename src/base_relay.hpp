@@ -18,16 +18,15 @@ public:
 
 	virtual void start_relay() = 0;
 	virtual void stop_relay() = 0;
-	relay_state_t get_state();
 
-	void set_alive(bool);
-	bool alive();
-	void timeout_down();
+	int timeout_down();
+	void reset_timeout();
 
 	std::weak_ptr<relay_manager> manager;
 	const relay_config &config;
 	asio::io_context &io;
 	asio::strand<asio::io_context::executor_type> strand;
+	relay_state_t state;
 
 private:
 	struct base_impl;
