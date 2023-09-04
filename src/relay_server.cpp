@@ -59,20 +59,3 @@ void relay_server::local_udp_server_start()
 
 
 
-std::size_t parse_addr(void *pdata, void*addr)
-{
-    auto dst_addr = (sockaddr_in*)addr;
-    auto data=(uint8_t*)pdata;
-    if (dst_addr->sin_family == AF_INET) {
-        data[0] = 1;
-        memcpy(&data[1], &dst_addr->sin_addr, 4);
-        memcpy(&data[5], &dst_addr->sin_port, 2);
-        return 7;
-    } else {
-        auto dst_addr6 = (struct sockaddr_in6*)addr;
-        data[0] = 4;
-        memcpy(&data[1], &dst_addr6->sin6_addr, 16);
-        memcpy(&data[17], &dst_addr6->sin6_port, 2);
-        return 19;
-    }
-}

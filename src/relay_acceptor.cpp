@@ -94,6 +94,8 @@ void relay_acceptor::acceptor_impl::local_accept()
 		}
 	});
 }
+
+
 // local udp server
 static std::pair<std::shared_ptr<relay_data>, udp::endpoint> transparent_udp_recv_on(udp::socket &u_sock)
 {
@@ -120,7 +122,7 @@ static std::pair<std::shared_ptr<relay_data>, udp::endpoint> transparent_udp_rec
 		if ((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR)
 			||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
 			parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
-			auto [host, port] = parse_address(buf->data_buffer().data(), 19);
+			// auto [host, port] = parse_address(buf->data_buffer().data(), 19);
 			// BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
 		//     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
 		//     dstaddr->ss_family = AF_INET;
@@ -154,6 +156,8 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 				// }
 				// BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
 				// ssl_ptr->send_udp_data(src_addr, buffer);
+				// _manager->add_request(buffer);
+				_manager->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local udp  error: "<<error.what();
 				throw error;
@@ -163,6 +167,8 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 }
 void relay_acceptor::start_accept()
 {
+	// TBD Start manager
+	_impl->_manager = std::make_shared<relay_manager>(_impl->_io, _impl->_config);
 	if (_impl->_config.type == REMOTE_SERVER) {
 		_impl->remote_accept();
 	} else if (_impl->_config.type == LOCAL_TRANSPARENT) {

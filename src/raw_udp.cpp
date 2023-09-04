@@ -10,10 +10,10 @@ std::string buf_to_string(void *buf, std::size_t size);
 
 struct raw_udp::udp_impl
 {
-    explicit udp_impl(raw_udp *owner, asio::io_context &io, const udp::endpoint &dst):
+    explicit udp_impl(raw_udp *owner, asio::io_context &io):
         _owner(owner),
-        _sock(io, udp::v6()),
-        _remote(dst)
+        _sock(io, udp::v6())
+        // _remote(dst)
         // , _host_resolver(io, udp::v6())
     {}
     ~udp_impl() =default;
@@ -61,14 +61,14 @@ void raw_udp::udp_impl::impl_start_recv()
                 mngr->add_request(buf);
             }
         } catch (boost::system::system_error& error) {
-            BOOST_LOG_TRIVIAL(error) << _owner->session()<<" udp raw read error: "<<error.what();
+            BOOST_LOG_TRIVIAL(error) << _owner->session<<" udp raw read error: "<<error.what();
             _owner->stop_relay();
         }
     });
 }
 // remote raw udp
-raw_udp::raw_udp(asio::io_context &io, server_type type, const udp::endpoint &dst):
-    raw_relay(io, config), _impl(std::make_unique<udp_impl>(this, io, dst))
+raw_udp::raw_udp(asio::io_context &io, const relay_config& config):
+    raw_relay(io, config), _impl(std::make_unique<udp_impl>(this, io))
 {
     BOOST_LOG_TRIVIAL(info) << "raw udp construct ";
 }
@@ -144,6 +144,7 @@ udp::endpoint& raw_udp::udp_impl::get_send_data_addr(const std::shared_ptr<relay
 	    return _peers[buf->session()];
     }
     // TBD should not happen
+    return _remote;
 }
 std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
@@ -161,7 +162,6 @@ std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, a
 
 void raw_udp::start_relay()
 {
-    // auto relay_type = type();
     _impl->_sock.set_option(udp::socket::reuse_address(true));
     if (config.type == REMOTE_SERVER) {
         _impl->_sock.bind(udp::endpoint(udp::v6(), 0));

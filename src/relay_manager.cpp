@@ -5,14 +5,6 @@
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
 
-static std::shared_ptr<ssl_relay> start_new_ssl_relay(asio::io_context &io, const relay_config &config)
-{
-	// TBD
-	auto relay = std::make_shared<ssl_relay>(io, config);
-
-	return relay;
-}
-
 struct relay_manager::manager_impl
 {
 	manager_impl(relay_manager *owner, asio::io_context &io, const relay_config &config):
@@ -46,6 +38,9 @@ struct relay_manager::manager_impl
 	void remote_server_start_tcp(const std::shared_ptr<relay_data>& buf);
 	void add_remote_raw_tcp(uint32_t session, const std::string &host, const std::string &service);
 
+	std::shared_ptr<raw_relay> add_remote_raw_udp(uint32_t session);//, const std::string &host, const std::string &service);
+	// void add_local_raw_udp(const udp::endpoint&);
+
 	void start_timer();
 };
 
@@ -60,13 +55,14 @@ void relay_manager::add_request(const std::shared_ptr<relay_data> buf)
 	auto self(shared_from_this());
 	run_in_strand(_impl->_strand, [this, self, buf](){
 		auto &ssl = _impl->_ssl;
-		if (ssl == nullptr || ssl->get_state() == RELAY_STOP) {
+		if (ssl == nullptr || ssl->state == RELAY_STOP) {
 			if (_impl->_config.type == REMOTE_SERVER) {
 				_impl->stop_manager();
 				return;
 			}
 			// local servers, no valid ssl connection, start new
-			ssl = start_new_ssl_relay(_impl->_io, _impl->_config);
+			ssl = std::make_shared<ssl_relay>(_impl->_io, _impl->_config);
+			ssl->start_relay();
 		}
 		ssl->send_data(buf);
 	});
@@ -89,7 +85,7 @@ void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<r
 	auto &relay = _relays[session];
 	if (relay == nullptr || relay->state == RELAY_STOP) {
 		// TBD add new raw_udp and send_data
-		// relay = impl_add_raw_udp(session);
+		relay = add_remote_raw_udp(session);
 	}
 	relay->send_data(buf);
 	// BOOST_LOG_TRIVIAL(info) << "ssl send raw udp data" << session;
@@ -145,6 +141,7 @@ void relay_manager::manager_impl::start_timer()
 	asio::spawn(_strand, [this, owner](asio::yield_context yield) {
 		asio::steady_timer timer(_io);
 		while (true) {
+			if (_state == RELAY_STOP) return;
 			timer.expires_after(std::chrono::seconds(RELAY_TICK));
 			boost::system::error_code err;
 			timer.async_wait(yield[err]);
@@ -159,8 +156,10 @@ void relay_manager::manager_impl::start_timer()
 			// TBD remove timeout relays
 
 			if (_ssl->timeout_down() == 0) {
-				if (_config.type == REMOTE_SERVER)
+				if (_config.type == REMOTE_SERVER) {
 					stop_manager();
+					return;
+				}
 			}
 		}
 	});
@@ -196,15 +195,33 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 	});
 }
 
-// uint32_t ssl_relay::ssl_impl::impl_add_raw_udp(uint32_t session, const udp::endpoint &src)
-// {
-//     if (session == 0) {
-//         session = _session++;
-//         _srcs[src] = session;
-//     }
-//     // BOOST_LOG_TRIVIAL(info) << "ssl add raw udp session"<<session<<" from"<<src;
-
+std::shared_ptr<raw_relay> relay_manager::manager_impl::add_remote_raw_udp(uint32_t session)
+{
+	// auto &relay = _relays[session];
+	// if (relay != nullptr) {
+	//	// TBD repeat session
+	//	relay->stop_relay();
+	// }
+	auto relay = std::make_shared<raw_udp>(_io, _config);
+	relay->session = session;
+	relay->manager =  _owner->shared_from_this();
+	relay->start_relay();
+	return relay;
+}
 void relay_manager::manager_start()
 {
 	_impl->start_timer();
+}
+
+void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_ptr<relay_data> buf)
+{
+	auto self(shared_from_this());
+	run_in_strand(_impl->_strand, [this, self, src, buf]{
+		auto sess = _impl->_srcs[src];
+		if (sess == 0) {
+			_impl->_srcs[src] = ++_impl->_session;
+		}
+		buf->session(sess);
+		add_request(buf);
+	});
 }

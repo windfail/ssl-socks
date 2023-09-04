@@ -14,6 +14,7 @@ public:
 	~relay_manager();
 	void add_request(const std::shared_ptr<relay_data>);
 	void add_response(const std::shared_ptr<relay_data>);
+	void send_udp_data(const udp::endpoint , const std::shared_ptr<relay_data>);
 
 	void manager_start();
 

@@ -11,7 +11,7 @@ class raw_udp
 	:public raw_relay
 {
 public:
-	raw_udp(asio::io_context &io, const relay_config&, const udp::endpoint &dst);
+	raw_udp(asio::io_context &io, const relay_config&);
 	// raw_udp(asio::io_context &io, const relay_config&, const std::string &host, const std::string &service);
 	~raw_udp();
 	void start_relay();
