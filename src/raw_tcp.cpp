@@ -71,13 +71,13 @@ void raw_tcp::tcp_impl::impl_start_read()
 	});
 }
 
-raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config) :
-	raw_relay(io, config),_impl(std::make_unique<tcp_impl> (this, io))
+raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config, std::shared_ptr<relay_manager> mngr) :
+	raw_relay(io, config, mngr),_impl(std::make_unique<tcp_impl> (this, io))
 {
     BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }
-raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config, const std::string &host, const std::string &service) :
-	raw_relay(io, config), _impl(std::make_unique<tcp_impl> (this, io, host, service))
+raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config, std::shared_ptr<relay_manager> mngr, const std::string &host, const std::string &service) :
+	raw_relay(io, config, mngr), _impl(std::make_unique<tcp_impl> (this, io, host, service))
 {
     BOOST_LOG_TRIVIAL(info) << "raw tcp construct: ";
 }

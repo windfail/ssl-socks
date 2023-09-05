@@ -40,8 +40,6 @@ struct ssl_relay::ssl_impl
 
     void impl_start_read();
 
-    uint32_t impl_add_raw_udp(uint32_t session, const udp::endpoint &src=udp::endpoint());
-    void impl_start_timer();
 };
 
 void ssl_relay::ssl_impl::impl_start_read()
@@ -85,8 +83,8 @@ ssl_relay::~ssl_relay()
 {
     BOOST_LOG_TRIVIAL(info) << "ssl relay destruct";
 }
-ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config) :
-    base_relay(io, config), _impl(std::make_unique<ssl_impl>(this, io, config))
+ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config, std::shared_ptr<relay_manager> mngr) :
+	base_relay(io, config, mngr), _impl(std::make_unique<ssl_impl>(this, io, config))
 {
     BOOST_LOG_TRIVIAL(info) << "ssl relay construct";
 }
@@ -183,23 +181,5 @@ ssl_socket & ssl_relay::get_sock()
 void ssl_relay::internal_log(const std::string &desc, const boost::system::system_error&error)
 {
     BOOST_LOG_TRIVIAL(error) << "ssl_relay "<<desc<<error.what();
-}
-
-void ssl_relay::send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> buf)
-{
-    auto self(shared_from_this());
-    run_in_strand(strand, [this, self, src, buf]() {
-        if (state == RELAY_STOP) {
-            BOOST_LOG_TRIVIAL(error) << "ssl send udp on stop";
-            return;
-        }
-        auto sess = _impl->_srcs[src];
-        if (sess == 0) {
-            sess = _impl->impl_add_raw_udp(0, src);
-        }
-        // BOOST_LOG_TRIVIAL(error) << "send udp data";
-        buf->session(sess);
-        send_data(buf);
-    });
 }
 

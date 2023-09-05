@@ -9,9 +9,9 @@
 // {
 // };
 
-raw_relay::raw_relay(asio::io_context &io, const relay_config &config) :
-    base_relay(io, config)
-    // base_relay(io, config), _impl(std::make_unique<raw_relay::raw_impl> ())
+raw_relay::raw_relay(asio::io_context &io, const relay_config &config, std::shared_ptr<relay_manager> mngr) :
+	base_relay(io, config, mngr)
+	// base_relay(io, config), _impl(std::make_unique<raw_relay::raw_impl> ())
 {}
 
 raw_relay::~raw_relay() = default;

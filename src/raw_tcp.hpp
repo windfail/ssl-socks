@@ -9,8 +9,8 @@ class raw_tcp
 {
 public:
 	//
-	raw_tcp(asio::io_context &io, const relay_config&);
-	raw_tcp(asio::io_context &io, const relay_config&, const std::string &host, const std::string &service);
+	raw_tcp(asio::io_context &io, const relay_config&config, std::shared_ptr<relay_manager> mngr);
+	raw_tcp(asio::io_context &io, const relay_config&config, std::shared_ptr<relay_manager> mngr, const std::string &host, const std::string &service);
 
 	~raw_tcp();
 

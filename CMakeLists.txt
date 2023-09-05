@@ -7,16 +7,18 @@ cmake_minimum_required(VERSION 3.5)
 #set(CMAKE_CXX_FLAGS "--std=c++2a -I/usr/include/c++/v1/" )
 # Set the project name
 project (netsock)
-SET(CMAKE_BUILD_TYPE "Release")
-#SET(CMAKE_BUILD_TYPE "Debug")
+#SET(CMAKE_BUILD_TYPE "Release")
+SET(CMAKE_BUILD_TYPE "Debug")
 # Create a sources variable with a link to all cpp files to compile
 set(SOURCES
   src/util.c
+  src/utils.cpp
   src/base_relay.cpp
     src/ssl_relay.cpp
     src/raw_relay.cpp
     src/raw_udp.cpp
-    src/relay_server.cpp
+    src/relay_manager.cpp
+    src/relay_acceptor.cpp
     src/raw_tcp.cpp
     src/gfwlist.cpp
     src/main.cpp

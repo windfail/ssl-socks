@@ -20,7 +20,7 @@ using json = nlohmann::json;
 // #include <boost/log/utility/setup/file.hpp>
 // #include <boost/log/utility/setup/common_attributes.hpp>
 
-#include "relay_server.hpp"
+#include "relay_acceptor.hpp"
 
 namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
@@ -51,16 +51,16 @@ int server_start(const relay_config &config)
 
     while (true){
         asio::io_context io;
-        relay_server server(io, config);
+        relay_acceptor server(io, config);
         std::vector<std::thread> server_th;
         try {
-            server.start_server();
+            server.start_accept();
 
             BOOST_LOG_TRIVIAL(info) << "main  start thread";
-            for (int i = 1; i < config.thread_num; i++) {
-                server_th.emplace_back([&](){ server.server_run();});
+            for (int i = 0; i < config.thread_num; i++) {
+                server_th.emplace_back([&](){ io.run();});
             }
-            server.server_run();
+            io.run();
         } catch (std::exception & e) {
             io.stop();
             for (auto && th: server_th) {

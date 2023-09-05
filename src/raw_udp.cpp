@@ -67,8 +67,8 @@ void raw_udp::udp_impl::impl_start_recv()
     });
 }
 // remote raw udp
-raw_udp::raw_udp(asio::io_context &io, const relay_config& config):
-    raw_relay(io, config), _impl(std::make_unique<udp_impl>(this, io))
+raw_udp::raw_udp(asio::io_context &io, const relay_config& config, std::shared_ptr<relay_manager> mngr):
+	raw_relay(io, config, mngr), _impl(std::make_unique<udp_impl>(this, io))
 {
     BOOST_LOG_TRIVIAL(info) << "raw udp construct ";
 }

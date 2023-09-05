@@ -61,7 +61,7 @@ void relay_manager::add_request(const std::shared_ptr<relay_data> buf)
 				return;
 			}
 			// local servers, no valid ssl connection, start new
-			ssl = std::make_shared<ssl_relay>(_impl->_io, _impl->_config);
+			ssl = std::make_shared<ssl_relay>(_impl->_io, _impl->_config, self);
 			ssl->start_relay();
 		}
 		ssl->send_data(buf);
@@ -69,8 +69,6 @@ void relay_manager::add_request(const std::shared_ptr<relay_data> buf)
 }
 void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_ptr<relay_data>& buf)
 {
-	// TBD
-// send udp
 	auto udp_send = _relays[0];
 	if (udp_send->state == RELAY_STOP) {
 		// TBD
@@ -84,7 +82,6 @@ void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<r
 	auto session = buf->session();
 	auto &relay = _relays[session];
 	if (relay == nullptr || relay->state == RELAY_STOP) {
-		// TBD add new raw_udp and send_data
 		relay = add_remote_raw_udp(session);
 	}
 	relay->send_data(buf);
@@ -168,9 +165,8 @@ void relay_manager::manager_impl::start_timer()
 void relay_manager::manager_impl::add_remote_raw_tcp(uint32_t sess, const std::string &host, const std::string &service)
 {
 
-	auto relay = std::make_shared<raw_tcp> (_io, _config, host, service);
+	auto relay = std::make_shared<raw_tcp> (_io, _config, _owner->shared_from_this(), host, service);
 	relay->session = sess;
-	relay->manager = _owner->shared_from_this();
 	_relays[sess] = relay;
 	relay->start_relay();
 }
@@ -189,7 +185,6 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 			return;
 		}
 		relay->session = session;
-		relay->manager = self;
 		_impl->_relays[session] = relay;
 		relay->start_relay();
 	});
@@ -197,20 +192,19 @@ void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
 
 std::shared_ptr<raw_relay> relay_manager::manager_impl::add_remote_raw_udp(uint32_t session)
 {
-	// auto &relay = _relays[session];
-	// if (relay != nullptr) {
-	//	// TBD repeat session
-	//	relay->stop_relay();
-	// }
-	auto relay = std::make_shared<raw_udp>(_io, _config);
+	auto mngr = _owner->shared_from_this();
+	auto relay = std::make_shared<raw_udp>(_io, _config, mngr);
 	relay->session = session;
-	relay->manager =  _owner->shared_from_this();
 	relay->start_relay();
 	return relay;
 }
 void relay_manager::manager_start()
 {
 	_impl->start_timer();
+	if (_impl->_config.type != REMOTE_SERVER) {
+		// create local udp relay
+		_impl->_relays[0] = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
+	}
 }
 
 void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_ptr<relay_data> buf)
@@ -220,6 +214,8 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		auto sess = _impl->_srcs[src];
 		if (sess == 0) {
 			_impl->_srcs[src] = ++_impl->_session;
+			auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
+			udp_send->add_peer(sess, src);
 		}
 		buf->session(sess);
 		add_request(buf);

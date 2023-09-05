@@ -78,7 +78,7 @@ int gfw_list::add_host(const std::string & host)
 	_hosts.push_back(host);
 	return 0;
 }
-bool gfw_list::is_blocked(const std::string & host)
+bool gfw_list::is_blocked(const std::string & host) const
 {
 	if (_hosts.size() == 0)
 		return true;

@@ -62,10 +62,11 @@ void relay_acceptor::acceptor_impl::remote_accept()
 	asio::spawn(_strand, [this](asio::yield_context yield) {
 		while (true) {
 			try {
-				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config);
+				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config, _manager);
 				_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
-				//TBD add manager
+				_manager->manager_start();
 				ssl_ptr->start_relay();
+				_manager = std::make_shared<relay_manager>(_io, _config);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
 				throw error;
@@ -80,7 +81,7 @@ void relay_acceptor::acceptor_impl::local_accept()
 	asio::spawn(_strand, [this](asio::yield_context yield) {
 		while (true) {
 			try {
-				auto new_relay = make_shared<raw_tcp> (_io, _config);
+				auto new_relay = make_shared<raw_tcp> (_io, _config, _manager);
 				_acceptor.async_accept(new_relay->get_sock(), yield);
 				if (_manager == nullptr) {
 					// TBD throw error
@@ -147,16 +148,7 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 				_udp_acceptor.async_wait(udp::socket::wait_read, yield);
 				// BOOST_LOG_TRIVIAL(error) << "local start recv udp msg ";
 				// recvmsg
-				auto [buffer, src_sddr] = transparent_udp_recv_on(_udp_acceptor);
-				// auto ssl_ptr = _impl->_ssl.lock();
-				// if (ssl_ptr == nullptr) {
-				//	ssl_ptr = std::make_shared<ssl_relay> (_impl->_io, _impl->_config);
-				//	_impl->_ssl = ssl_ptr;
-				//	ssl_ptr->start_relay();
-				// }
-				// BOOST_LOG_TRIVIAL(info) << "udp receive: ssl count"<< ssl_ptr.use_count();
-				// ssl_ptr->send_udp_data(src_addr, buffer);
-				// _manager->add_request(buffer);
+				auto [buffer, src_addr] = transparent_udp_recv_on(_udp_acceptor);
 				_manager->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local udp  error: "<<error.what();
@@ -167,14 +159,14 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 }
 void relay_acceptor::start_accept()
 {
-	// TBD Start manager
 	_impl->_manager = std::make_shared<relay_manager>(_impl->_io, _impl->_config);
 	if (_impl->_config.type == REMOTE_SERVER) {
 		_impl->remote_accept();
-	} else if (_impl->_config.type == LOCAL_TRANSPARENT) {
+	} else {//if (_impl->_config.type == LOCAL_TRANSPARENT) {
+		_impl->_manager->manager_start();
 		_impl->local_udp_accept();
 		_impl->local_accept();
-	} else if (_impl->_config.type == LOCAL_SERVER){
-		_impl->local_accept();
+	// } else if (_impl->_config.type == LOCAL_SERVER){
+		// _impl->local_accept();
 	}
 }

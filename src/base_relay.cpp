@@ -14,8 +14,9 @@ struct base_relay::base_impl
 	int _timeout;
 };
 
-base_relay::base_relay(asio::io_context &io, const relay_config &conf):
+base_relay::base_relay(asio::io_context &io, const relay_config &conf, std::shared_ptr<relay_manager> mngr):
 	// _strand(io.get_executor()),
+	manager(mngr),
 	config(conf),
 	io(io),
 	strand(io.get_executor()), state(RELAY_INIT),

@@ -12,7 +12,7 @@ class ssl_relay
 	:public base_relay
 {
 public:
-	ssl_relay(asio::io_context &io, const relay_config &config);
+	ssl_relay(asio::io_context &io, const relay_config &config, std::shared_ptr<relay_manager> mngr);
 
 	~ssl_relay();
 
@@ -25,13 +25,12 @@ public:
 	void start_relay();
 	void stop_relay();
 
-	void send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> buf);
+	// void send_udp_data(const udp::endpoint &src, std::shared_ptr<relay_data> buf);
 
 private:
 	struct ssl_impl;
 	std::unique_ptr<ssl_impl> _impl;
 	std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield);
-	void internal_stop_relay();
 	void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));
 
 };

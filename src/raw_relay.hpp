@@ -8,12 +8,11 @@ class raw_relay
 	:public base_relay
 {
 public:
-	raw_relay(asio::io_context &io, const relay_config&);
+	raw_relay(asio::io_context &io, const relay_config& config, std::shared_ptr<relay_manager> mngr);
 	// raw_relay(asio::io_context &io, std::shared_ptr<ssl_relay> manager=nullptr, uint32_t session = 0);
 	virtual ~raw_relay();
 
 	uint32_t session;
-	std::weak_ptr<relay_manager> manager;
 	// void set_manager(const std::shared_ptr<relay_manager> manager);
 
 	// ssl relay call to stop raw relay

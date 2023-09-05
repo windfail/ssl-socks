@@ -11,7 +11,7 @@ class base_relay
 	: public std::enable_shared_from_this<base_relay>
 {
 public:
-	base_relay(asio::io_context &io, const relay_config &config);
+	base_relay(asio::io_context &io, const relay_config &config, std::shared_ptr<relay_manager>);
 	virtual ~base_relay();
 	void send_data(const std::shared_ptr<relay_data> buf);
 	void start_send();
