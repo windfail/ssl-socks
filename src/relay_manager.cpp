@@ -151,12 +151,11 @@ void relay_manager::manager_impl::start_timer()
 				}
 			}
 			// TBD remove timeout relays
-
-			if (_ssl->timeout_down() == 0) {
-				if (_config.type == REMOTE_SERVER) {
+			if (_ssl != nullptr
+				&& _ssl->timeout_down() == 0
+				&& _config.type == REMOTE_SERVER) {
 					stop_manager();
 					return;
-				}
 			}
 		}
 	});
