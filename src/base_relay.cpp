@@ -58,9 +58,14 @@ void base_relay::start_send()
 		        timer.async_wait(yield[err]);
 		        if (err == asio::error::operation_aborted) {
 			        // TBD timer stoped
+			        internal_log(" send timer aborted");
 			        return;
 		        }
-		        if (state == RELAY_STOP) return;
+		        if (state == RELAY_STOP) {
+			        internal_log(" send stopped: ");
+
+			        return;
+		        }
 	        }
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
@@ -79,6 +84,8 @@ void base_relay::reset_timeout()
 }
 int base_relay::timeout_down()
 {
+	if (_impl->_timeout == 0)
+		return 0;
 	if (--_impl->_timeout == 0) {
 		stop_relay();
 	}

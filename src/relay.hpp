@@ -25,7 +25,8 @@ typedef boost::asio::detail::socket_option::boolean<SOL_IPV6, IPV6_TRANSPARENT> 
 
 const int RELAY_TICK = 10;
 const int TIMEOUT_COUNT = 12;
-const int TIMEOUT = RELAY_TICK*TIMEOUT_COUNT;
+// const int TIMEOUT = RELAY_TICK*TIMEOUT_COUNT;
+const int TIMEOUT = 12;
 
 class base_relay;
 class raw_relay;

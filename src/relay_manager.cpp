@@ -25,6 +25,8 @@ struct relay_manager::manager_impl
 
 	std::shared_ptr<ssl_relay> _ssl;
 	std::map<uint32_t, std::shared_ptr<raw_relay>> _relays;
+
+	std::shared_ptr<raw_udp> _udp_send;
 	std::map<udp::endpoint, uint32_t> _srcs;
 
 	relay_state_t _state;
@@ -69,13 +71,12 @@ void relay_manager::add_request(const std::shared_ptr<relay_data> buf)
 }
 void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_ptr<relay_data>& buf)
 {
-	auto udp_send = _relays[0];
-	if (udp_send->state == RELAY_STOP) {
+	if (_udp_send->state == RELAY_STOP) {
 		// TBD
 		// some error occur, create new udp_send
 		// _impl->_relays[0] = new_udp_send();
 	}
-	udp_send->send_data(buf);
+	_udp_send->send_data(buf);
 }
 void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<relay_data>& buf)
 {
@@ -107,7 +108,13 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 			auto tcp_session = _impl->_relays.find(session);
 			if (tcp_session != _impl->_relays.end()) {
 				auto& [ignored, relay] = *tcp_session;
-				relay->send_data(buf);
+				if (relay->state == RELAY_STOP) {
+					BOOST_LOG_TRIVIAL(info) << "get tcp data on stoped session:" << session;
+				} else {
+					relay->send_data(buf);
+				}
+			} else {
+				BOOST_LOG_TRIVIAL(info) << "get tcp data on unkown session:" << session;
 			}
 		} else if (buf->cmd() == relay_data::DATA_UDP) {
 			if (_impl->_config.type == LOCAL_TRANSPARENT) {
@@ -145,17 +152,21 @@ void relay_manager::manager_impl::start_timer()
 			if (err == asio::error::operation_aborted) {
 				return;
 			}
-			for (auto &[sess, relay]:_relays) {
-				if (relay) {
-					relay->timeout_down();
-				}
-			}
-			// TBD remove timeout relays
+
 			if (_ssl != nullptr
 				&& _ssl->timeout_down() == 0
 				&& _config.type == REMOTE_SERVER) {
 					stop_manager();
 					return;
+			}
+			for (auto iter = _relays.begin(); iter != _relays.end();) {
+				auto relay = iter->second;
+				if (relay == nullptr
+					|| relay->timeout_down() == 0) {
+					iter = _relays.erase(iter);
+				} else {
+					++iter;
+				}
 			}
 		}
 	});
@@ -202,7 +213,7 @@ void relay_manager::manager_start()
 	_impl->start_timer();
 	if (_impl->_config.type != REMOTE_SERVER) {
 		// create local udp relay
-		_impl->_relays[0] = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
+		_impl->_udp_send = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
 	}
 }
 
@@ -213,8 +224,8 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		auto sess = _impl->_srcs[src];
 		if (sess == 0) {
 			_impl->_srcs[src] = ++_impl->_session;
-			auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
-			udp_send->add_peer(sess, src);
+			// auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
+			_impl->_udp_send->add_peer(sess, src);
 		}
 		buf->session(sess);
 		add_request(buf);

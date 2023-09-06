@@ -96,6 +96,10 @@ void raw_tcp::stop_relay()
     run_in_strand(strand, [this, self](){
         // call close socket
         // BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
+	    if (state == RELAY_STOP) {
+		    BOOST_LOG_TRIVIAL(info) << "raw_tcp: already stopped"<< session;
+		    return;
+	    }
 	    state = RELAY_STOP;
         boost::system::error_code err;
         _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
