@@ -18,7 +18,8 @@ public:
 
 	void manager_start();
 
-	void add_local_raw_tcp(const std::shared_ptr<raw_tcp> relay);
+	void add_local_raw_tcp(const std::shared_ptr<raw_tcp> &relay);
+    void set_ssl(const std::shared_ptr<ssl_relay> &ssl);
 private:
 	struct manager_impl;
 	std::unique_ptr<manager_impl> _impl;

@@ -44,6 +44,11 @@ struct relay_manager::manager_impl
 	// void add_local_raw_udp(const udp::endpoint&);
 
 	void start_timer();
+    void attach_ssl(const std::shared_ptr<ssl_relay> &ssl)
+    {
+        _ssl = ssl;
+    }
+
 };
 
 relay_manager::relay_manager(asio::io_context &io, const relay_config &config):
@@ -183,7 +188,7 @@ void relay_manager::manager_impl::add_remote_raw_tcp(uint32_t sess, const std::s
 // add raw_tcp:
 // in local server: relay_server create and connect on raw_tcp, call with sess=0, ssl_relay create new session
 // in remote server: ssl_relay get TCP_CONNECT cmd with session, create new raw_tcp with session
-void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> tcp_relay)
+void relay_manager::add_local_raw_tcp(const std::shared_ptr<raw_tcp> &tcp_relay)
 {
 	auto self(shared_from_this());
 	run_in_strand(_impl->_strand, [this, self, tcp_relay]() {
@@ -230,4 +235,8 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		buf->session(sess);
 		add_request(buf);
 	});
+}
+void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)
+{
+    _impl->attach_ssl(ssl);
 }

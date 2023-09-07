@@ -64,12 +64,13 @@ void relay_acceptor::acceptor_impl::remote_accept()
 			try {
 				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config, _manager);
 				_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
+                _manager->set_ssl(ssl_ptr);
 				_manager->manager_start();
 				ssl_ptr->start_relay();
 				_manager = std::make_shared<relay_manager>(_io, _config);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "remote accept error: "<<error.what();
-				throw error;
+				throw;
 			}
 		}
 	});
@@ -90,7 +91,7 @@ void relay_acceptor::acceptor_impl::local_accept()
 				_manager->add_local_raw_tcp(new_relay);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
-				throw error;
+				throw;
 			}
 		}
 	});
@@ -152,7 +153,7 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 				_manager->send_udp_data(src_addr, buffer);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local udp  error: "<<error.what();
-				throw error;
+				throw;
 			}
 		}
 	});

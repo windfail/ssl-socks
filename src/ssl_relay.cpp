@@ -69,6 +69,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 				auto mngr = owner->manager.lock();
 				if (mngr == nullptr) {
 					// TBD should not happen
+                    BOOST_LOG_TRIVIAL(error) << "ssl manager is null";
 				}
 				mngr->add_response(buf);
 			}
