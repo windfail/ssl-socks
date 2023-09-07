@@ -124,8 +124,8 @@ static std::pair<std::shared_ptr<relay_data>, udp::endpoint> transparent_udp_rec
 		if ((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVORIGDSTADDR)
 			||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
 			parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
-			// auto [host, port] = parse_address(buf->data_buffer().data(), 19);
-			// BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
+			auto [host, port] = parse_address(buf->data_buffer().data(), 19);
+			BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
 		//     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
 		//     dstaddr->ss_family = AF_INET;
 		//     return 0;
@@ -147,7 +147,6 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 		while (true) {
 			try {
 				_udp_acceptor.async_wait(udp::socket::wait_read, yield);
-				// BOOST_LOG_TRIVIAL(error) << "local start recv udp msg ";
 				// recvmsg
 				auto [buffer, src_addr] = transparent_udp_recv_on(_udp_acceptor);
 				_manager->send_udp_data(src_addr, buffer);

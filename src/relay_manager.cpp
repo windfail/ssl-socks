@@ -122,6 +122,7 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 				BOOST_LOG_TRIVIAL(info) << "get tcp data on unkown session:" << session;
 			}
 		} else if (buf->cmd() == relay_data::DATA_UDP) {
+			BOOST_LOG_TRIVIAL(info) << "get udp data on  session:" << buf->session();
 			if (_impl->_config.type == LOCAL_TRANSPARENT) {
 				_impl->local_transparent_send_udp(buf);
 			} else if (_impl->_config.type == REMOTE_SERVER) {
@@ -226,7 +227,7 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 {
 	auto self(shared_from_this());
 	run_in_strand(_impl->_strand, [this, self, src, buf]{
-		auto sess = _impl->_srcs[src];
+		auto &sess = _impl->_srcs[src];
 		if (sess == 0) {
 			_impl->_srcs[src] = ++_impl->_session;
 			// auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
@@ -234,6 +235,7 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		}
 		buf->session(sess);
 		add_request(buf);
+		BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess;
 	});
 }
 void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)
