@@ -37,7 +37,14 @@ void raw_udp::add_peer(uint32_t session, const udp::endpoint & peer)
 }
 void raw_udp::del_peer(uint32_t session)
 {
-    _impl->_peers.erase(session);
+    auto self(shared_from_this());
+    run_in_strand(strand, [this, self, session]() {
+	    if (session == 0) {
+		    _impl->_peers.clear();
+	    } else {
+		    _impl->_peers.erase(session);
+	    }
+    });
 }
 // remote raw_udp start recv
 // local trasparent recv in acceptor

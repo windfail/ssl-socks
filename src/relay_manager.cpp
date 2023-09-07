@@ -5,6 +5,12 @@
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
 
+struct udp_timeout
+{
+	uint32_t session;
+	int timeout;
+};
+
 struct relay_manager::manager_impl
 {
 	manager_impl(relay_manager *owner, asio::io_context &io, const relay_config &config):
@@ -27,7 +33,8 @@ struct relay_manager::manager_impl
 	std::map<uint32_t, std::shared_ptr<raw_relay>> _relays;
 
 	std::shared_ptr<raw_udp> _udp_send;
-	std::map<udp::endpoint, uint32_t> _srcs;
+	std::map<udp::endpoint, udp_timeout> _srcs;
+	std::map<uint32_t, udp::endpoint> _udp_srcs;
 
 	relay_state_t _state;
 
@@ -127,6 +134,7 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 			BOOST_LOG_TRIVIAL(info) << "get udp data on  session:" << buf->session();
 			if (_impl->_config.type == LOCAL_TRANSPARENT) {
 				_impl->local_transparent_send_udp(buf);
+				_impl->_srcs[_impl->_udp_srcs[buf->session()]].timeout = TIMEOUT;
 			} else if (_impl->_config.type == REMOTE_SERVER) {
 				_impl->remote_server_send_udp(buf);
 			}
@@ -162,13 +170,31 @@ void relay_manager::manager_impl::start_timer()
 			}
 
 			if (_ssl != nullptr
-				&& _ssl->timeout_down() == 0
-				&& _config.type == REMOTE_SERVER) {
+				&& _ssl->timeout_down() == 0) {
+				if ( _config.type == REMOTE_SERVER) {
 					stop_manager();
 					return;
+				} else {
+					BOOST_LOG_TRIVIAL(info) << " udp clear ";
+					_udp_srcs.clear();
+					_srcs.clear();
+					_udp_send->del_peer(0);
+				}
+			}
+
+			for (auto iter = _srcs.begin(); iter != _srcs.end();) {
+				auto &src = iter->second;
+				if (--src.timeout <= 0) {
+					BOOST_LOG_TRIVIAL(info) <<src.session<< " udp erase ";
+					_udp_srcs.erase(src.session);
+					_udp_send->del_peer(src.session);
+					iter = _srcs.erase(iter);
+				} else {
+					++iter;
+				}
 			}
 			for (auto iter = _relays.begin(); iter != _relays.end();) {
-				auto relay = iter->second;
+				auto &relay = iter->second;
 				if (relay == nullptr
 					|| relay->timeout_down() == 0) {
 					iter = _relays.erase(iter);
@@ -231,14 +257,16 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 	auto self(shared_from_this());
 	run_in_strand(_impl->_strand, [this, self, src, buf]{
 		auto &sess = _impl->_srcs[src];
-		if (sess == 0) {
-			_impl->_srcs[src] = ++_impl->_session;
+		if (sess.session == 0) {
+			sess.session = ++_impl->_session;
 			// auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
-			_impl->_udp_send->add_peer(sess, src);
+			_impl->_udp_send->add_peer(sess.session, src);
+			_impl->_udp_srcs.insert({sess.session, src});
 		}
-		buf->session(sess);
+		sess.timeout = TIMEOUT;
+		buf->session(sess.session);
 		add_request(buf);
-		BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess;
+		BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess.session;
 	});
 }
 void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)
