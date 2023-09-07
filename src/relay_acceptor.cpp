@@ -64,7 +64,7 @@ void relay_acceptor::acceptor_impl::remote_accept()
 			try {
 				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config, _manager);
 				_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
-                _manager->set_ssl(ssl_ptr);
+				_manager->set_ssl(ssl_ptr);
 				_manager->manager_start();
 				ssl_ptr->start_relay();
 				_manager = std::make_shared<relay_manager>(_io, _config);
@@ -125,7 +125,7 @@ static std::pair<std::shared_ptr<relay_data>, udp::endpoint> transparent_udp_rec
 			||(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVORIGDSTADDR)) {
 			parse_addr(buf->data_buffer().data(), CMSG_DATA(cmsg));
 			auto [host, port] = parse_address(buf->data_buffer().data(), 19);
-			BOOST_LOG_TRIVIAL(info) << " udp recv dst "<<host<<port;
+			BOOST_LOG_TRIVIAL(info) << " udp recv"<<src<<" dst "<<host<<port;
 		//     memcpy(dstaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
 		//     dstaddr->ss_family = AF_INET;
 		//     return 0;

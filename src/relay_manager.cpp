@@ -44,10 +44,10 @@ struct relay_manager::manager_impl
 	// void add_local_raw_udp(const udp::endpoint&);
 
 	void start_timer();
-    void attach_ssl(const std::shared_ptr<ssl_relay> &ssl)
-    {
-        _ssl = ssl;
-    }
+	void attach_ssl(const std::shared_ptr<ssl_relay> &ssl)
+	{
+		_ssl = ssl;
+	}
 
 };
 
@@ -80,7 +80,9 @@ void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_p
 		// TBD
 		// some error occur, create new udp_send
 		// _impl->_relays[0] = new_udp_send();
+		BOOST_LOG_TRIVIAL(error) << " udp send is stopeed" ;
 	}
+	BOOST_LOG_TRIVIAL(info) << " add to udp send" ;
 	_udp_send->send_data(buf);
 }
 void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<relay_data>& buf)
@@ -220,6 +222,7 @@ void relay_manager::manager_start()
 	if (_impl->_config.type != REMOTE_SERVER) {
 		// create local udp relay
 		_impl->_udp_send = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
+		_impl->_udp_send->start_send();
 	}
 }
 
@@ -240,5 +243,5 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 }
 void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)
 {
-    _impl->attach_ssl(ssl);
+	_impl->attach_ssl(ssl);
 }

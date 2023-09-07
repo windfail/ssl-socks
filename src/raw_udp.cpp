@@ -149,7 +149,7 @@ udp::endpoint& raw_udp::udp_impl::get_send_data_addr(const std::shared_ptr<relay
 std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
     // send to _remote
-    // BOOST_LOG_TRIVIAL(info) << buf_to_string(buf->udp_data_buffer().data(), buf->udp_data_buffer().size());
+	BOOST_LOG_TRIVIAL(info) << "udp send on session"<<buf->session();
     auto dst = _impl->get_send_data_addr(buf);
     BOOST_LOG_TRIVIAL(info) << buf->session()<<" udp send to "<< dst;
 	auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), dst, yield);
