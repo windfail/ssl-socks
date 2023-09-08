@@ -35,7 +35,9 @@ void base_relay::send_data(const std::shared_ptr<relay_data> buf)
             return;
         }
         _impl->_bufs.push(buf);
-        reset_timeout();
+        if (state == RELAY_INIT && _impl->_bufs.size() == 1) {
+	        start_send();
+        }
     });
 }
 void base_relay::start_send()
@@ -43,30 +45,38 @@ void base_relay::start_send()
     auto self(shared_from_this());
     asio::spawn(strand, [this, self](asio::yield_context yield){
         try {
+	        if (state != RELAY_INIT) {
+		        return;
+	        }
 	        state = RELAY_START;
-	        asio::steady_timer timer(io);
-	        while (true) {
+	        // asio::steady_timer timer(io);
+	        // while (true) {
 		        while (!_impl->_bufs.empty()) {
+			        if (state == RELAY_STOP) {
+				        break;
+			        }
 			        auto buf = _impl->_bufs.front();
 			        _impl->_bufs.pop();
 			        // internal send shoud check len and throw error
+			        reset_timeout();
 			        internal_send_data(buf, yield);
 		        }
-		        // add timer
-		        timer.expires_after(std::chrono::milliseconds(10));
-		        boost::system::error_code err;
-		        timer.async_wait(yield[err]);
-		        if (err == asio::error::operation_aborted) {
-			        // TBD timer stoped
-			        internal_log(" send timer aborted");
-			        return;
-		        }
-		        if (state == RELAY_STOP) {
-			        internal_log(" send stopped: ");
+		    //     // add timer
+		    //     timer.expires_after(std::chrono::milliseconds(10));
+		    //     boost::system::error_code err;
+		    //     timer.async_wait(yield[err]);
+		    //     if (err == asio::error::operation_aborted) {
+			//         // TBD timer stoped
+			//         internal_log(" send timer aborted");
+			//         return;
+		    //     }
+		    //     if (state == RELAY_STOP) {
+			//         internal_log(" send stopped: ");
 
-			        return;
-		        }
-	        }
+			//         return;
+		    //     }
+	        // }
+		        state = RELAY_INIT;
         } catch (boost::system::system_error& error) {
             internal_log("send data:", error);
             stop_relay();
