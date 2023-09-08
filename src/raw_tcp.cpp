@@ -66,6 +66,11 @@ void raw_tcp::tcp_impl::impl_start_read()
 			}
 		} catch (boost::system::system_error& error) {
 			BOOST_LOG_TRIVIAL(error) << _owner->session<<" tcp raw read error: "<<error.what();
+			auto stop_buf = std::make_shared<relay_data>(_owner->session, relay_data::STOP_TCP);
+            auto mngr = _owner-> manager.lock();
+            if (mngr != nullptr) {
+	            mngr->add_request(stop_buf);
+            }
             _owner->stop_relay();
 		}
 	});
@@ -149,6 +154,11 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 			}
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("local relay:", error);
+            auto stop_buf = std::make_shared<relay_data>(_owner->session, relay_data::STOP_TCP);
+            auto mngr = _owner-> manager.lock();
+            if (mngr != nullptr) {
+	            mngr->add_request(stop_buf);
+            }
             _owner->stop_relay();
 		}
 	});
@@ -183,6 +193,11 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         });
     } catch (boost::system::system_error& error) {
         _owner->internal_log("tproxy start:", error);
+        auto stop_buf = std::make_shared<relay_data>(_owner->session, relay_data::STOP_TCP);
+        auto mngr = _owner-> manager.lock();
+        if (mngr != nullptr) {
+	        mngr->add_request(stop_buf);
+        }
         _owner->stop_relay();
     }
 }
@@ -244,6 +259,11 @@ void raw_tcp::tcp_impl::impl_start_local()
 
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("local start:", error);
+            auto stop_buf = std::make_shared<relay_data>(_owner->session, relay_data::STOP_TCP);
+            auto mngr = _owner-> manager.lock();
+            if (mngr != nullptr) {
+	            mngr->add_request(stop_buf);
+            }
             _owner->stop_relay();
 		}
 	});
@@ -267,6 +287,11 @@ void raw_tcp::tcp_impl::impl_start_remote()
 
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("start remote :", error);
+            auto stop_buf = std::make_shared<relay_data>(_owner->session, relay_data::STOP_TCP);
+            auto mngr = _owner-> manager.lock();
+            if (mngr != nullptr) {
+	            mngr->add_request(stop_buf);
+            }
             _owner->stop_relay();
 		}
 	});

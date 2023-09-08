@@ -140,6 +140,15 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 			}
 		} else if (buf->cmd() == relay_data::START_TCP) { // remote get start connect
 			_impl->remote_server_start_tcp(buf);
+		} else if (buf->cmd() == relay_data::STOP_TCP) {
+			auto session = buf->session();
+			auto tcp_session = _impl->_relays.find(session);
+			if (tcp_session == _impl->_relays.end()) {
+				return;
+			}
+			auto& [ignored, relay] = *tcp_session;
+			relay->stop_relay();
+			_impl->_relays.erase(tcp_session);
 		}
 	});
 }
