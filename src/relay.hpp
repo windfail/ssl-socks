@@ -44,6 +44,7 @@ enum server_type {
 };
 
 typedef enum {
+	RELAY_UNINIT,
 	RELAY_INIT,
 	RELAY_START,
 	RELAY_STOP,

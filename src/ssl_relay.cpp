@@ -70,8 +70,10 @@ void ssl_relay::ssl_impl::impl_start_read()
 				if (mngr == nullptr) {
 					// TBD should not happen
                     BOOST_LOG_TRIVIAL(error) << "ssl manager is null";
+                    return;
+				} else {
+					mngr->add_response(buf);
 				}
-				mngr->add_response(buf);
 			}
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("read:", error);
@@ -128,6 +130,7 @@ void ssl_relay::start_relay()
             //     _impl->_local_udp->manager(std::static_pointer_cast<ssl_relay> (self));
             //     _impl->_local_udp->start_relay();
             // }
+			state = RELAY_INIT;
             start_send();
             // start ssl read routine
             _impl->impl_start_read();

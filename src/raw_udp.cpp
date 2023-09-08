@@ -98,6 +98,7 @@ void raw_udp::stop_relay()
 		    // do not stop, restart start_send
 		    BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
 		    _impl->_local = udp::endpoint();
+		    state = RELAY_INIT;
 		    start_send();
 		    return;
 	    }
@@ -156,9 +157,9 @@ udp::endpoint& raw_udp::udp_impl::get_send_data_addr(const std::shared_ptr<relay
 std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
 {
     // send to _remote
-	BOOST_LOG_TRIVIAL(info) << "udp send on session"<<buf->session();
+	// BOOST_LOG_TRIVIAL(info) << "udp send on session"<<buf->session();
     auto dst = _impl->get_send_data_addr(buf);
-    BOOST_LOG_TRIVIAL(info) << buf->session()<<" udp send to "<< dst;
+    // BOOST_LOG_TRIVIAL(info) << buf->session()<<" udp send to "<< dst;
 	auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), dst, yield);
     if (len != buf->udp_data_size()) {
         auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();
@@ -174,7 +175,11 @@ void raw_udp::start_relay()
         _impl->_sock.bind(udp::endpoint(udp::v6(), 0));
         _impl->impl_start_recv();
     }
-    start_send();
+    auto self(shared_from_this());
+    run_in_strand(strand, [this, self]{
+	    state = RELAY_INIT;
+	    start_send();
+    });
 }
 void raw_udp::internal_log(const std::string &desc, const boost::system::system_error&error)
 {

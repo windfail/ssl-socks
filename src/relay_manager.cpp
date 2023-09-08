@@ -89,7 +89,7 @@ void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_p
 		// _impl->_relays[0] = new_udp_send();
 		BOOST_LOG_TRIVIAL(error) << " udp send is stopeed" ;
 	}
-	BOOST_LOG_TRIVIAL(info) << " add to udp send" ;
+	// BOOST_LOG_TRIVIAL(info) << " add to udp send" ;
 	_udp_send->send_data(buf);
 }
 void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<relay_data>& buf)
@@ -131,7 +131,7 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 				BOOST_LOG_TRIVIAL(info) << "get tcp data on unkown session:" << session;
 			}
 		} else if (buf->cmd() == relay_data::DATA_UDP) {
-			BOOST_LOG_TRIVIAL(info) << "get udp data on  session:" << buf->session();
+			// BOOST_LOG_TRIVIAL(info) << "get udp data on  session:" << buf->session();
 			if (_impl->_config.type == LOCAL_TRANSPARENT) {
 				_impl->local_transparent_send_udp(buf);
 				_impl->_srcs[_impl->_udp_srcs[buf->session()]].timeout = TIMEOUT;
@@ -175,7 +175,7 @@ void relay_manager::manager_impl::start_timer()
 					stop_manager();
 					return;
 				} else {
-					BOOST_LOG_TRIVIAL(info) << " udp clear ";
+					// BOOST_LOG_TRIVIAL(info) << " udp clear ";
 					_udp_srcs.clear();
 					_srcs.clear();
 					_udp_send->del_peer(0);
@@ -185,7 +185,7 @@ void relay_manager::manager_impl::start_timer()
 			for (auto iter = _srcs.begin(); iter != _srcs.end();) {
 				auto &src = iter->second;
 				if (--src.timeout <= 0) {
-					BOOST_LOG_TRIVIAL(info) <<src.session<< " udp erase ";
+					// BOOST_LOG_TRIVIAL(info) <<src.session<< " udp erase ";
 					_udp_srcs.erase(src.session);
 					_udp_send->del_peer(src.session);
 					iter = _srcs.erase(iter);
@@ -248,7 +248,7 @@ void relay_manager::manager_start()
 	if (_impl->_config.type != REMOTE_SERVER) {
 		// create local udp relay
 		_impl->_udp_send = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
-		_impl->_udp_send->start_send();
+		_impl->_udp_send->start_relay();
 	}
 }
 
@@ -266,7 +266,7 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		sess.timeout = TIMEOUT;
 		buf->session(sess.session);
 		add_request(buf);
-		BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess.session;
+		// BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess.session;
 	});
 }
 void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)

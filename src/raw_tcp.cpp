@@ -95,9 +95,8 @@ void raw_tcp::stop_relay()
     auto self(shared_from_this());
     run_in_strand(strand, [this, self](){
         // call close socket
-        // BOOST_LOG_TRIVIAL(info) << "raw_tcp: stop raw tcp"<< session();
 	    if (state == RELAY_STOP) {
-		    BOOST_LOG_TRIVIAL(info) << "raw_tcp: already stopped"<< session;
+		    // BOOST_LOG_TRIVIAL(info) << "raw_tcp: already stopped"<< session;
 		    return;
 	    }
 	    state = RELAY_STOP;
@@ -173,10 +172,15 @@ void raw_tcp::tcp_impl::impl_start_transparent()
         auto mngr = _owner-> manager.lock();
         if (mngr == nullptr) {
 	        //TBD should not happen!!
+	        return;
         }
         mngr->add_request(buffer);
         impl_start_read();
-        _owner->start_send();
+        auto owner(_owner->shared_from_this());
+        run_in_strand(_owner->strand, [this, owner]{
+	        _owner->state = RELAY_INIT;
+	        _owner->start_send();
+        });
     } catch (boost::system::system_error& error) {
         _owner->internal_log("tproxy start:", error);
         _owner->stop_relay();
@@ -231,6 +235,7 @@ void raw_tcp::tcp_impl::impl_start_local()
 				impl_local_relay(false);
 			}
             // start_send for local relay too, use timer to stop when timeout
+			_owner->state = RELAY_INIT;
             _owner->start_send();
 			// send sock5 ok back
 			//BOOST_LOG_TRIVIAL(info) << " send sock5 ok back : ";
@@ -255,6 +260,7 @@ void raw_tcp::tcp_impl::impl_start_remote()
 			asio::async_connect(_sock, re_hosts, yield);
             // BOOST_LOG_TRIVIAL(info) << "raw_tcp connect to "<<host<<port;
 
+			_owner->state = RELAY_INIT;
             _owner->start_send();
 			// start raw data relay
 			impl_start_read();
