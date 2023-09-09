@@ -68,9 +68,11 @@ int server_start(const relay_config &config)
                 th.join();
             }
             BOOST_LOG_TRIVIAL(error) << "main :server run error: "<<e.what();
+	        sleep(1);
         } catch (...) {
             io.stop();
             BOOST_LOG_TRIVIAL(error) << "main ;server run error with unkown exception ";
+	        sleep(1);
         }
     }
 

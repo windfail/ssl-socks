@@ -18,6 +18,7 @@ struct relay_manager::manager_impl
 		_owner(owner),
 		_io(io),
 		_strand(io.get_executor()),
+		// _udp_send(std::make_shared<raw_udp>(io, config, owner->shared_from_this())),
 		_state(RELAY_START)
 	{
 
@@ -56,6 +57,7 @@ struct relay_manager::manager_impl
 		_ssl = ssl;
 	}
 
+	void start_local_udp();
 };
 
 relay_manager::relay_manager(asio::io_context &io, const relay_config &config):
@@ -83,13 +85,11 @@ void relay_manager::add_request(const std::shared_ptr<relay_data> buf)
 }
 void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_ptr<relay_data>& buf)
 {
-	if (_udp_send->state == RELAY_STOP) {
-		// TBD
-		// some error occur, create new udp_send
-		// _impl->_relays[0] = new_udp_send();
-		BOOST_LOG_TRIVIAL(error) << " udp send is stopeed" ;
-	}
 	// BOOST_LOG_TRIVIAL(info) << " add to udp send" ;
+	if (_udp_send->state == RELAY_STOP) {
+		BOOST_LOG_TRIVIAL(info) << " manager udp send stop: start new local udp" ;
+		start_local_udp();
+	}
 	_udp_send->send_data(buf);
 }
 void relay_manager::manager_impl::remote_server_send_udp(const std::shared_ptr<relay_data>& buf)
@@ -124,6 +124,7 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 				auto& [ignored, relay] = *tcp_session;
 				if (relay->state == RELAY_STOP) {
 					BOOST_LOG_TRIVIAL(info) << "get tcp data on stoped session:" << session;
+					_impl->_relays.erase(tcp_session);
 				} else {
 					relay->send_data(buf);
 				}
@@ -251,14 +252,20 @@ std::shared_ptr<raw_relay> relay_manager::manager_impl::add_remote_raw_udp(uint3
 	relay->start_relay();
 	return relay;
 }
+void relay_manager::manager_impl::start_local_udp()
+{
+		// create local udp relay
+		_udp_send = std::make_shared<raw_udp>(_io, _config, _owner->shared_from_this());
+		_udp_send->start_relay();
+}
 void relay_manager::manager_start()
 {
-	_impl->start_timer();
 	if (_impl->_config.type != REMOTE_SERVER) {
-		// create local udp relay
-		_impl->_udp_send = std::make_shared<raw_udp>(_impl->_io, _impl->_config, shared_from_this());
-		_impl->_udp_send->start_relay();
+		_impl->start_local_udp();
+		BOOST_LOG_TRIVIAL(info) << " manager start: start local udp relay" ;
+		// _impl->_udp_send->start_relay();
 	}
+	_impl->start_timer();
 }
 
 void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_ptr<relay_data> buf)
@@ -269,6 +276,10 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		if (sess.session == 0) {
 			sess.session = ++_impl->_session;
 			// auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
+			if (_impl->_udp_send->state == RELAY_STOP) {
+				BOOST_LOG_TRIVIAL(info) << " manager receive udp data: udp send stop: start new local udp" ;
+				_impl->start_local_udp();
+			}
 			_impl->_udp_send->add_peer(sess.session, src);
 			_impl->_udp_srcs.insert({sess.session, src});
 		}

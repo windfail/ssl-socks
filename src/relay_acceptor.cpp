@@ -87,7 +87,7 @@ void relay_acceptor::acceptor_impl::local_accept()
 				if (_manager == nullptr) {
 					// TBD throw error
 				}
-				BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp";
+				// BOOST_LOG_TRIVIAL(info) << "relay_server : add new tcp";
 				_manager->add_local_raw_tcp(new_relay);
 			} catch (boost::system::system_error& error) {
 				BOOST_LOG_TRIVIAL(error) << "local accept error: "<<error.what();
