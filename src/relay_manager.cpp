@@ -87,7 +87,7 @@ void relay_manager::manager_impl::local_transparent_send_udp(const std::shared_p
 {
 	// BOOST_LOG_TRIVIAL(info) << " add to udp send" ;
 	if (_udp_send->state == RELAY_STOP) {
-		BOOST_LOG_TRIVIAL(info) << " manager udp send stop: start new local udp" ;
+		BOOST_LOG_TRIVIAL(error) << " manager udp send stop: start new local udp" ;
 		start_local_udp();
 	}
 	_udp_send->send_data(buf);
@@ -125,11 +125,15 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 				if (relay->state == RELAY_STOP) {
 					BOOST_LOG_TRIVIAL(info) << "get tcp data on stoped session:" << session;
 					_impl->_relays.erase(tcp_session);
+					auto stop_buf = std::make_shared<relay_data>(session, relay_data::STOP_TCP);
+					add_request(stop_buf);
 				} else {
 					relay->send_data(buf);
 				}
 			} else {
 				BOOST_LOG_TRIVIAL(info) << "get tcp data on unkown session:" << session;
+				// auto stop_buf = std::make_shared<relay_data>(session, relay_data::STOP_TCP);
+				// add_request(stop_buf);
 			}
 		} else if (buf->cmd() == relay_data::DATA_UDP) {
 			// BOOST_LOG_TRIVIAL(info) << "get udp data on  session:" << buf->session();
@@ -145,6 +149,7 @@ void relay_manager::add_response(const std::shared_ptr<relay_data> buf)
 			auto session = buf->session();
 			auto tcp_session = _impl->_relays.find(session);
 			if (tcp_session == _impl->_relays.end()) {
+				BOOST_LOG_TRIVIAL(info) << "stop tcp on unkown session:" << session;
 				return;
 			}
 			auto& [ignored, relay] = *tcp_session;
@@ -262,8 +267,7 @@ void relay_manager::manager_start()
 {
 	if (_impl->_config.type != REMOTE_SERVER) {
 		_impl->start_local_udp();
-		BOOST_LOG_TRIVIAL(info) << " manager start: start local udp relay" ;
-		// _impl->_udp_send->start_relay();
+		// BOOST_LOG_TRIVIAL(info) << " manager start: start local udp relay" ;
 	}
 	_impl->start_timer();
 }
@@ -277,7 +281,7 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 			sess.session = ++_impl->_session;
 			// auto udp_send = std::static_pointer_cast<raw_udp>( _impl->_relays[0]);
 			if (_impl->_udp_send->state == RELAY_STOP) {
-				BOOST_LOG_TRIVIAL(info) << " manager receive udp data: udp send stop: start new local udp" ;
+				BOOST_LOG_TRIVIAL(error) << " manager receive udp data: udp send stop: start new local udp" ;
 				_impl->start_local_udp();
 			}
 			_impl->_udp_send->add_peer(sess.session, src);
