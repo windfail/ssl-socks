@@ -35,7 +35,7 @@ static void init_log(const std::string &log_file)
 
 	logging::add_common_attributes();
 	logging::core::get()->set_filter (
-		logging::trivial::severity >= logging::trivial::info
+		logging::trivial::severity >= logging::trivial::warning
 		);
 	BOOST_LOG_TRIVIAL(trace) << "A trace severity message";
 	BOOST_LOG_TRIVIAL(debug) << "A debug severity message";
