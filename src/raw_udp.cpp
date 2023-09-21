@@ -94,14 +94,14 @@ void raw_udp::stop_relay()
 {
     auto self(shared_from_this());
     run_in_strand(strand, [this, self](){
-	    if (config.type == LOCAL_TRANSPARENT) {
-		    // do not stop, restart start_send
-		    BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
-		    _impl->_local = udp::endpoint();
-		    state = RELAY_INIT;
-		    start_send();
-		    return;
-	    }
+	    // if (config.type == LOCAL_TRANSPARENT) {
+		//     // do not stop, restart start_send
+		//     BOOST_LOG_TRIVIAL(info) << "restart tproxy udp send";
+		//     // _impl->_local = udp::endpoint();
+		//     state = RELAY_INIT;
+		//     // start_send();
+		//     return;
+	    // }
 	    state = RELAY_STOP;
         // call close socket
         // BOOST_LOG_TRIVIAL(info) << "stop raw udp";
