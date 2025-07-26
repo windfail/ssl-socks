@@ -21,6 +21,9 @@ struct relay_acceptor::acceptor_impl
 			_udp_acceptor.set_option(udp::socket::reuse_address(true));
 			_udp_acceptor.set_option(udp::socket::keep_alive(true));
 
+			_acceptor.set_option(asio::ip::v6_only(false));
+			_udp_acceptor.set_option(asio::ip::v6_only(false));
+
 			if (config.type == LOCAL_TRANSPARENT) {
 				_acceptor.set_option(_ip_transparent_t(true));
 
