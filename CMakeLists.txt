@@ -1,14 +1,14 @@
 # Set the minimum version of CMake that can be used
 # To find the cmake version run
 # $ cmake --version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 #set(CMAKE_C_COMPILER /usr/lib/llvm/11/bin/clang)
 #set(CMAKE_CXX_COMPILER /usr/lib/llvm/11/bin/clang++)
 #set(CMAKE_CXX_FLAGS "--std=c++2a -I/usr/include/c++/v1/" )
 # Set the project name
 project (netsock)
-SET(CMAKE_BUILD_TYPE "Release")
-#SET(CMAKE_BUILD_TYPE "Debug")
+#SET(CMAKE_BUILD_TYPE "Release")
+SET(CMAKE_BUILD_TYPE "Debug")
 # Create a sources variable with a link to all cpp files to compile
 set(SOURCES
   src/util.c
@@ -37,7 +37,9 @@ pkg_check_modules(pthread REQUIRED )
 
 #find_package(nlohmann_json  REQUIRED)
 # find a boost install with the libraries filesystem and system
-find_package(Boost 1.71 REQUIRED COMPONENTS system log log_setup coroutine)
+find_package(Boost REQUIRED CONFIG
+    COMPONENTS system log log_setup coroutine  # 仅指定必需组件
+)
 
 add_definitions(-DBOOST_LOG_DYN_LINK)
 # check if boost was found
