@@ -74,6 +74,9 @@ int server_start(const relay_config &config)
             BOOST_LOG_TRIVIAL(error) << "main ;server run error with unkown exception ";
 	        sleep(1);
         }
+		for (auto&& th : server_th) {
+			if (th.joinable()) th.join(); // 确保线程结束
+		}
     }
 
 	return 0;
