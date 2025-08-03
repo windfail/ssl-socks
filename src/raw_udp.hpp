@@ -23,7 +23,7 @@ private:
 	struct udp_impl;
 	std::unique_ptr<udp_impl> _impl ;
 
-	std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield);
+	asio::awaitable<std::size_t> internal_send_data(const std::shared_ptr<relay_data> buf);
 	// void internal_stop_relay();
 	// void local_relay(bool dir);
 	void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));

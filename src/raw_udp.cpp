@@ -1,5 +1,7 @@
 #include <boost/format.hpp>
-#include <boost/asio/spawn.hpp>
+#include <boost/asio.hpp>
+// #include <boost/asio/co_spawn.hpp>
+// #include <boost/asio/detached.hpp>
 #include <unordered_map>
 #include "raw_udp.hpp"
 #include "ssl_relay.hpp"
@@ -51,13 +53,15 @@ void raw_udp::del_peer(uint32_t session)
 void raw_udp::udp_impl::impl_start_recv()
 {
     auto owner(_owner->shared_from_this());
-    asio::spawn(_owner->strand, [this, owner](asio::yield_context yield){
+	auto task = [this, owner]() -> asio::awaitable<void> {
         try {
             while (true) {
                 udp::endpoint peer;
                 auto buf = std::make_shared<relay_data>();
                 // BOOST_LOG_TRIVIAL(info) <<_owner->session()<< " raw udp recv at: "<< _sock.local_endpoint();
-                auto len = _sock.async_receive_from(buf->udp_data_buffer(), peer, yield);
+                auto len = co_await _sock.async_receive_from(
+					buf->udp_data_buffer(), peer,
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
                 parse_addr(buf->data_buffer().data(), peer.data());
                 buf->session(_owner->session);
                 // BOOST_LOG_TRIVIAL(info) << _owner->session()<<" raw udp read len: "<< len<<" from "<<peer<<"local"<<_sock.local_endpoint();
@@ -71,7 +75,9 @@ void raw_udp::udp_impl::impl_start_recv()
             BOOST_LOG_TRIVIAL(error) << _owner->session<<" udp raw read error: "<<error.what();
             _owner->stop_relay();
         }
-    });
+    };
+
+    asio::co_spawn(_owner->strand, task, asio::detached);
 }
 // remote raw udp
 raw_udp::raw_udp(asio::io_context &io, const relay_config& config, std::shared_ptr<relay_manager> mngr):
@@ -154,18 +160,20 @@ udp::endpoint& raw_udp::udp_impl::get_send_data_addr(const std::shared_ptr<relay
     // TBD should not happen
     return _remote;
 }
-std::size_t raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
+asio::awaitable<std::size_t> raw_udp::internal_send_data(const std::shared_ptr<relay_data> buf)
 {
     // send to _remote
 	// BOOST_LOG_TRIVIAL(info) << "udp send on session"<<buf->session();
     auto dst = _impl->get_send_data_addr(buf);
     // BOOST_LOG_TRIVIAL(info) << buf->session()<<" udp send to "<< dst;
-	auto len = _impl->_sock.async_send_to(buf->udp_data_buffer(), dst, yield);
+	auto len = co_await _impl->_sock.async_send_to(
+		buf->udp_data_buffer(), dst,
+		asio::bind_executor(strand, asio::use_awaitable));
     if (len != buf->udp_data_size()) {
         auto emsg = boost::format("udp relay len %1%, data size %2%")%len % buf->udp_data_size();
         throw_err_msg(emsg.str());
     }
-    return len;
+    co_return len;
 }
 
 void raw_udp::start_relay()

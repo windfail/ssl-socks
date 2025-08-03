@@ -2,9 +2,11 @@
 #include <iostream>
 #include <map>
 #include <sstream>
-#include <boost/asio/spawn.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/connect.hpp>
+#include <boost/asio.hpp>
+// #include <boost/asio/co_spawn.hpp>
+// #include <boost/asio/detached.hpp>
+// #include <boost/asio/read.hpp>
+// #include <boost/asio/connect.hpp>
 // #include <random>
 //#include <boost/asio/yield.hpp>
 #include <boost/format.hpp>
@@ -45,11 +47,13 @@ struct ssl_relay::ssl_impl
 void ssl_relay::ssl_impl::impl_start_read()
 {
     auto owner(_owner->shared_from_this());
-    asio::spawn(_owner->strand, [this, owner](asio::yield_context yield){
+	auto task = [this, owner]() -> asio::awaitable<void> {
         try{
 			while (true) {
 				auto buf = std::make_shared<relay_data>(0);
-				auto len = _sock.async_read_some(buf->header_buffer(), yield);
+				auto len = co_await _sock.async_read_some(
+					buf->header_buffer(),
+					asio::bind_executor(owner->strand, asio::use_awaitable));
 				// BOOST_LOG_TRIVIAL(info) << "ssl read session "<<buf->session()<<" cmd"<<buf->cmd();
 				if (len != buf->header_buffer().size()
 				    || buf->head()._len > READ_BUFFER_SIZE) {
@@ -59,7 +63,9 @@ void ssl_relay::ssl_impl::impl_start_read()
 					throw_err_msg(emsg.str());
 				}
 				if (buf->data_size() != 0) { // read data
-					len = asio::async_read(_sock, buf->data_buffer(), yield);
+					len = co_await asio::async_read(
+						_sock, buf->data_buffer(),
+						asio::bind_executor(_owner->strand, asio::use_awaitable));
 					if (len != buf->data_size()) {
 						auto emsg = format(" read len: %1%, expect %2%") % len % buf->data_size();
                         throw_err_msg(emsg.str());
@@ -70,7 +76,7 @@ void ssl_relay::ssl_impl::impl_start_read()
 				if (mngr == nullptr) {
 					// TBD should not happen
                     BOOST_LOG_TRIVIAL(error) << "ssl manager is null";
-                    return;
+                    co_return;
 				} else {
 					mngr->add_response(buf);
 				}
@@ -79,7 +85,9 @@ void ssl_relay::ssl_impl::impl_start_read()
             _owner->internal_log("read:", error);
             _owner->stop_relay();
 		}
-    });
+    };
+
+    asio::co_spawn(_owner->strand, task, asio::detached);
 }
 
 ssl_relay::~ssl_relay()
@@ -92,22 +100,24 @@ ssl_relay::ssl_relay(asio::io_context &io, const relay_config &config, std::shar
     BOOST_LOG_TRIVIAL(info) << "ssl relay construct";
 }
 
-std::size_t ssl_relay::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
+asio::awaitable<std::size_t> ssl_relay::internal_send_data(const std::shared_ptr<relay_data> buf)
 {
 	reset_timeout();
-    auto len = async_write(_impl->_sock, buf->buffers(), yield);
+    auto len = co_await async_write(
+		_impl->_sock, buf->buffers(),
+		asio::bind_executor(strand, asio::use_awaitable));
     if (len != buf->size()) {
         auto emsg = format("ssl relay len %1%, data size %2%")%len % buf->size();
         throw_err_msg(emsg.str());
     }
     // BOOST_LOG_TRIVIAL(info) << "ssl send ok, "<<len;
-    return len;
+    co_return len;
 }
 
 void ssl_relay::start_relay()
 {
     auto self(shared_from_this());
-    asio::spawn(strand, [this, self](asio::yield_context yield) {
+	auto task = [this, self]() -> asio::awaitable<void> {
 		try {
 			if (config.type != REMOTE_SERVER) {
 				auto & host = config.remote_ip;
@@ -115,14 +125,18 @@ void ssl_relay::start_relay()
                 auto msg = format("remote %1% port %2%")%host%port;
                 internal_log(msg.str());
                 tcp::resolver host_resolver(io);
-				auto re_hosts = host_resolver.async_resolve(host, port, yield);
-                asio::async_connect(_impl->_sock.lowest_layer(), re_hosts, yield);
+				auto re_hosts = co_await host_resolver.async_resolve(
+					host, port,
+					asio::bind_executor(strand, asio::use_awaitable));
+                co_await asio::async_connect(
+					_impl->_sock.lowest_layer(), re_hosts,
+					asio::bind_executor(strand, asio::use_awaitable));
 			}
 			_impl->_sock.lowest_layer().set_option(tcp::no_delay(true));
 
-			_impl->_sock.async_handshake(
+			co_await _impl->_sock.async_handshake(
 				config.type == REMOTE_SERVER ? ssl_socket::server : ssl_socket::client,
-				yield);
+				asio::bind_executor(strand, asio::use_awaitable));
 			// TBD local transparent udp
             // if (type() == LOCAL_TRANSPARENT) {
             //     // _impl->_local_udp.manager(std::static_pointer_cast<ssl_relay> (self));
@@ -140,18 +154,20 @@ void ssl_relay::start_relay()
             internal_log(emsg.str(), error);
             stop_relay();
 		}
-	});
+	};
+
+	asio::co_spawn(strand, task, asio::detached);
 }
 
 void ssl_relay::stop_relay()
 {
     auto self(shared_from_this());
-    asio::spawn(strand, [this, self](asio::yield_context yield) {
+	auto task = [this, self]() -> asio::awaitable<void> {
         // BOOST_LOG_TRIVIAL(info) << "ssl relay internal stop"<< self.use_count() << is_stop();
 	    state = RELAY_STOP;
         try{
             // close sock
-            _impl->_sock.async_shutdown(yield);
+            co_await _impl->_sock.async_shutdown(asio::bind_executor(strand, asio::use_awaitable));
             // BOOST_LOG_TRIVIAL(info) << "ssl relay shutdown ok"<< self.use_count();
             _impl->_sock.lowest_layer().close();
             // BOOST_LOG_TRIVIAL(info) << "ssl relay internal stop over"<< self.use_count();
@@ -159,7 +175,9 @@ void ssl_relay::stop_relay()
             _impl->_sock.lowest_layer().close();
             BOOST_LOG_TRIVIAL(error) << "ssl relay stop"<< self.use_count() <<" error:"<< error.what();
         }
-    });
+    };
+
+	asio::co_spawn(strand, task, asio::detached);
 }
 
 ssl::context init_ssl(const relay_config &config)

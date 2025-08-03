@@ -1,5 +1,5 @@
 #include <queue>
-#include <boost/asio/spawn.hpp>
+#include <boost/asio.hpp>
 #include "relay_manager.hpp"
 #include "raw_tcp.hpp"
 #include "raw_udp.hpp"
@@ -173,22 +173,25 @@ void relay_manager::manager_impl::stop_manager()
 void relay_manager::manager_impl::start_timer()
 {
 	auto owner(_owner->shared_from_this());
-	asio::spawn(_strand, [this, owner](asio::yield_context yield) {
+	auto task = [this, owner]() -> asio::awaitable<void> {
 		asio::steady_timer timer(_io);
 		while (true) {
-			if (_state == RELAY_STOP) return;
+			if (_state == RELAY_STOP) co_return;
 			timer.expires_after(std::chrono::seconds(RELAY_TICK));
-			boost::system::error_code err;
-			timer.async_wait(yield[err]);
-			if (err == asio::error::operation_aborted) {
-				return;
+			try {
+				co_await timer.async_wait(
+					asio::bind_executor(_strand, asio::use_awaitable));
+			} catch (const boost::system::system_error& e) {
+				if (e.code() == asio::error::operation_aborted) {
+					co_return;
+				}
 			}
 
 			if (_ssl != nullptr
 				&& _ssl->timeout_down() == 0) {
 				if ( _config.type == REMOTE_SERVER) {
 					stop_manager();
-					return;
+					co_return;
 				} else {
 					// BOOST_LOG_TRIVIAL(info) << " udp clear ";
 					_udp_srcs.clear();
@@ -218,7 +221,9 @@ void relay_manager::manager_impl::start_timer()
 				}
 			}
 		}
-	});
+	};
+
+	asio::co_spawn(_strand, task, asio::detached);
 }
 
 void relay_manager::manager_impl::add_remote_raw_tcp(uint32_t sess, const std::string &host, const std::string &service)

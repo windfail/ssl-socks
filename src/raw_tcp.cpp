@@ -3,9 +3,9 @@
 #include <sstream>
 #include <iomanip>
 #include <boost/format.hpp>
-#include <boost/asio/spawn.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/write.hpp>
+#include <boost/asio.hpp>
+// #include <boost/asio/connect.hpp>
+// #include <boost/asio/write.hpp>
 #include "raw_tcp.hpp"
 #include "relay_manager.hpp"
 
@@ -48,12 +48,13 @@ struct raw_tcp::tcp_impl
 void raw_tcp::tcp_impl::impl_start_read()
 {
 	auto owner(_owner->shared_from_this());
-
-	asio::spawn(_owner->strand, [this, owner](asio::yield_context yield) {
+	auto task = [this, owner]() -> asio::awaitable<void> {
 		try {
 			while (true) {
 				auto buf = std::make_shared<relay_data>(_owner->session);
-				auto len = _sock.async_read_some(buf->data_buffer(), yield);
+				auto len = co_await _sock.async_read_some(
+					buf->data_buffer(),
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
 				//	BOOST_LOG_TRIVIAL(info) << " raw read len: "<< len;
 				// post to manager
 				buf->resize(len);
@@ -73,7 +74,8 @@ void raw_tcp::tcp_impl::impl_start_read()
             }
             _owner->stop_relay();
 		}
-	});
+	};
+	asio::co_spawn(_owner->strand, task, asio::detached);
 }
 
 raw_tcp::raw_tcp(asio::io_context &io, const relay_config&config, std::shared_ptr<relay_manager> mngr) :
@@ -111,16 +113,18 @@ void raw_tcp::stop_relay()
     });
 }
 
-std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield)
+asio::awaitable<std::size_t> raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf)
 {
     // return async_write(_impl->_sock, buf->data_buffer(), yield);
-	auto len = asio::async_write(_impl->_sock, buf->data_buffer(), yield);
+	auto len = co_await asio::async_write(
+		_impl->_sock, buf->data_buffer(),
+		asio::bind_executor(strand, asio::use_awaitable));
     // BOOST_LOG_TRIVIAL(info) << session() <<" tcp send from "<< _impl->_sock.local_endpoint()<<"to "<<_impl->_sock.remote_endpoint()<<"len "<<len;
     if (len != buf->data_size()) {
         auto emsg = boost::format("tcp %d relay len %1%, data size %2%")%session%len % buf->size();
         throw_err_msg(emsg.str());
     }
-    return len;
+    co_return len;
 }
 
 
@@ -131,7 +135,7 @@ std::size_t raw_tcp::internal_send_data(const std::shared_ptr<relay_data> buf, a
 void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 {
 	auto owner(_owner->shared_from_this());
-	asio::spawn(_owner->strand, [this, owner, dir](asio::yield_context yield) {
+	auto task = [this, owner, dir]() -> asio::awaitable<void> {
 		try {
 			auto sock_r = &_sock;
 			auto sock_w = &_sock_remote;
@@ -143,10 +147,14 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
 			}
 			while (true) {
 				buf->resize(READ_BUFFER_SIZE);
-				auto len = sock_r->async_read_some(asio::buffer(*buf), yield);
+				auto len = co_await sock_r->async_read_some(
+					asio::buffer(*buf),
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
 
 				buf->resize(len);
-				len = async_write(*sock_w, asio::buffer(*buf), yield);
+				len = co_await async_write(
+					*sock_w, asio::buffer(*buf),
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
 				if (len != buf->size()) {
 					auto emsg = boost::format(" wlen%1%, buflen%2%")%len%buf->size();
 					throw_err_msg(emsg.str());
@@ -161,7 +169,9 @@ void raw_tcp::tcp_impl::impl_local_relay(bool dir)
             }
             _owner->stop_relay();
 		}
-	});
+	};
+
+	asio::co_spawn(_owner->strand, task, asio::detached);
 }
 
 extern "C"
@@ -206,13 +216,17 @@ void raw_tcp::tcp_impl::impl_start_transparent()
 void raw_tcp::tcp_impl::impl_start_local()
 {
 	auto owner(_owner->shared_from_this());
-	asio::spawn(_owner->strand, [this, owner](asio::yield_context yield) {
+	auto task = [this, owner]() -> asio::awaitable<void> {
 		try {
 			std::vector<uint8_t> buf(512,0);
-			auto len = _sock.async_receive(asio::buffer(buf), yield);
+			auto len = co_await _sock.async_receive(
+				asio::buffer(buf),
+				asio::bind_executor(_owner->strand, asio::use_awaitable));
 			// BOOST_LOG_TRIVIAL(info) << "local start rec len " << len <<" data " << buf[0] << buf[1] <<buf[2] ;
 			buf[0] = 5, buf[1] = 0;
-			len = async_write(_sock, asio::buffer(buf, 2), yield);
+			len = co_await async_write(
+				_sock, asio::buffer(buf, 2),
+				asio::bind_executor(_owner->strand, asio::use_awaitable));
 
 			if (len != 2) {
 				auto emsg = boost::format("write 0x5 0x0, len %1%")%len;
@@ -220,7 +234,9 @@ void raw_tcp::tcp_impl::impl_start_local()
 			}
 			// BOOST_LOG_TRIVIAL(info) << "local start writeback "  ;
 // get sock5 connect cmd
-			len = _sock.async_read_some(asio::buffer(buf), yield);
+			len = co_await _sock.async_read_some(
+				asio::buffer(buf),
+				asio::bind_executor(_owner->strand, asio::use_awaitable));
 			// BOOST_LOG_TRIVIAL(info) << "local read cmd "  ;
 			if (len < 6 || buf[1] != 1 ) {
 				auto emsg = boost::format("addr get len %1%, cmd %2%")%len %buf[1];
@@ -244,8 +260,14 @@ void raw_tcp::tcp_impl::impl_start_local()
 			} else {
                 BOOST_LOG_TRIVIAL(info) << "not blocked, use local";
                 tcp::resolver _host_resolver(_owner->io);
-				auto re_hosts = _host_resolver.async_resolve(host, port, yield);
-				asio::async_connect(_sock_remote, re_hosts, yield);
+				auto re_hosts = co_await _host_resolver.async_resolve(
+					host, port,
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
+
+				co_await asio::async_connect(
+					_sock_remote, re_hosts,
+					asio::bind_executor(_owner->strand, asio::use_awaitable));
+
 				impl_local_relay(true);
 				impl_local_relay(false);
 			}
@@ -255,7 +277,9 @@ void raw_tcp::tcp_impl::impl_start_local()
 			// send sock5 ok back
 			//BOOST_LOG_TRIVIAL(info) << " send sock5 ok back : ";
 			buf =  {5, 0, 0, 1, 0, 0, 0, 0, 0, 0};
-			async_write(_sock, asio::buffer(buf), yield);
+			co_await async_write(
+				_sock, asio::buffer(buf),
+				asio::bind_executor(_owner->strand, asio::use_awaitable));
 
 		} catch (boost::system::system_error& error) {
             _owner->internal_log("local start:", error);
@@ -266,18 +290,24 @@ void raw_tcp::tcp_impl::impl_start_local()
             }
             _owner->stop_relay();
 		}
-	});
+	};
+
+	asio::co_spawn(_owner->strand, task, asio::detached);
 }
 
 // start remote raw_tcp, connect to real dst
 void raw_tcp::tcp_impl::impl_start_remote()
 {
 	auto owner(_owner->shared_from_this());
-	asio::spawn(_owner->strand, [this, owner](asio::yield_context yield) {
+	auto task = [this, owner]() -> asio::awaitable<void> {
 		try {
 			tcp::resolver _host_resolver(_owner->io);
-			auto re_hosts = _host_resolver.async_resolve(_dst_host, _dst_service, yield);
-			asio::async_connect(_sock, re_hosts, yield);
+			auto re_hosts = co_await _host_resolver.async_resolve(
+				_dst_host, _dst_service,
+				asio::bind_executor(owner->strand, asio::use_awaitable));
+			co_await asio::async_connect(
+				_sock, re_hosts,
+				asio::bind_executor(owner->strand, asio::use_awaitable));
             // BOOST_LOG_TRIVIAL(info) << "raw_tcp connect to "<<host<<port;
 
 			_owner->state = RELAY_INIT;
@@ -294,7 +324,8 @@ void raw_tcp::tcp_impl::impl_start_remote()
             }
             _owner->stop_relay();
 		}
-	});
+	};
+	asio::co_spawn(_owner->strand, task, asio::detached);
 }
 void raw_tcp::start_relay()
 {

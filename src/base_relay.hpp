@@ -2,6 +2,7 @@
 #define _SSL_SOCKS_BASE_RELAY_HPP
 
 #include <memory>
+#include <boost/asio/awaitable.hpp>
 #include "relay_data.hpp"
 #include "relay.hpp"
 
@@ -34,7 +35,7 @@ private:
 
 	// internal_send_data
 	// actually send data on diferrent socket
-	virtual std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield) = 0;
+	virtual asio::awaitable<std::size_t> internal_send_data(const std::shared_ptr<relay_data> buf) = 0;
 
 	virtual void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));
 };

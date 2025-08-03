@@ -23,7 +23,7 @@ set(SOURCES
     src/gfwlist.cpp
     src/main.cpp
 )
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # Add an executable with the above sources
 add_executable(${PROJECT_NAME} ${SOURCES})

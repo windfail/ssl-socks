@@ -1,6 +1,7 @@
 #include <queue>
 #include <future>
 #include <boost/format.hpp>
+#include <boost/asio.hpp>
 #include "base_relay.hpp"
 #include "relay_manager.hpp"
 
@@ -43,20 +44,20 @@ void base_relay::send_data(const std::shared_ptr<relay_data> buf)
 void base_relay::start_send()
 {
 	auto self(shared_from_this());
-	asio::spawn(strand, [this, self](asio::yield_context yield){
+	auto task = [this, self]() -> asio::awaitable<void> {
 		try {
 			if (state != RELAY_INIT) {
-				return;
+				co_return;
 			}
 			state = RELAY_START;
 			while (!_impl->_bufs.empty()) {
 				if (state == RELAY_STOP) {
-					return;
+					co_return;
 				}
 				auto buf = _impl->_bufs.front();
 				// internal send shoud check len and throw error
 				reset_timeout();
-				internal_send_data(buf, yield);
+				co_await internal_send_data(buf);
 				_impl->_bufs.pop();
 			}
 			state = RELAY_INIT;
@@ -64,7 +65,8 @@ void base_relay::start_send()
 			internal_log("send data:", error);
 			stop_relay();
 		}
-	});
+	};
+	asio::co_spawn(strand, task, asio::detached);
 }
 void base_relay::internal_log(const std::string &desc, const boost::system::system_error &error)
 {

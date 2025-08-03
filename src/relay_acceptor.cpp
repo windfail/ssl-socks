@@ -1,4 +1,7 @@
-#include <boost/asio/spawn.hpp>
+#include <boost/asio.hpp>
+// #include <boost/asio/co_spawn.hpp>
+// #include <boost/asio/detached.hpp>
+#include <boost/asio/ip/v6_only.hpp>
 #include "relay_acceptor.hpp"
 #include "relay_manager.hpp"
 #include "raw_tcp.hpp"
@@ -49,6 +52,7 @@ struct relay_acceptor::acceptor_impl
 	asio::strand<asio::io_context::executor_type> _strand;
 
 	shared_ptr<relay_manager> _manager;
+	// StrandTask<asio::io_context::executor_type> local_accept();
 	void local_accept();
 	void remote_accept();
 	void local_udp_accept();
@@ -62,11 +66,13 @@ relay_acceptor::~relay_acceptor() = default;
 
 void relay_acceptor::acceptor_impl::remote_accept()
 {
-	asio::spawn(_strand, [this](asio::yield_context yield) {
+	auto task = [this]() -> asio::awaitable<void> {
 		while (true) {
 			try {
 				auto ssl_ptr = std::make_shared<ssl_relay> (_io, _config, _manager);
-				_acceptor.async_accept(ssl_ptr->get_sock().lowest_layer(), yield);
+				co_await _acceptor.async_accept(
+					ssl_ptr->get_sock().lowest_layer(),
+					asio::bind_executor(_strand, asio::use_awaitable));
 				_manager->set_ssl(ssl_ptr);
 				_manager->manager_start();
 				ssl_ptr->start_relay();
@@ -76,17 +82,37 @@ void relay_acceptor::acceptor_impl::remote_accept()
 				throw;
 			}
 		}
-	});
+	};
 
-
+	asio::co_spawn(_strand, task, asio::detached);
 }
+
+// StrandTask<asio::io_context::executor_type>
+// relay_acceptor::acceptor_impl::local_accept() {
+//	while (true) {
+//		try {
+//			auto new_relay = std::make_shared<raw_tcp>(_io, _config, _manager);
+//			// 异步接受连接（绑定strand）
+//			co_await bind_strand(_strand, _acceptor.async_accept(
+//				new_relay->get_sock(), asio::use_awaitable
+//			));
+//			_manager->add_local_raw_tcp(new_relay);
+//		} catch (const std::exception& e) {
+//			BOOST_LOG_TRIVIAL(error) << "Accept error: " << e.what();
+//		}
+//	}
+// }
 void relay_acceptor::acceptor_impl::local_accept()
 {
-	asio::spawn(_strand, [this](asio::yield_context yield) {
+	auto task = [this]()-> asio::awaitable<void> {
 		while (true) {
 			try {
 				auto new_relay = make_shared<raw_tcp> (_io, _config, _manager);
-				_acceptor.async_accept(new_relay->get_sock(), yield);
+				co_await _acceptor.async_accept(
+					new_relay->get_sock(),
+					asio::bind_executor(_strand, asio::use_awaitable)
+					);
+				// _acceptor.async_accept(new_relay->get_sock(), yield);
 				if (_manager == nullptr) {
 					// TBD throw error
 				}
@@ -97,7 +123,8 @@ void relay_acceptor::acceptor_impl::local_accept()
 				throw;
 			}
 		}
-	});
+	};
+	asio::co_spawn(_strand, task, asio::detached);
 }
 
 
@@ -145,11 +172,12 @@ static std::pair<std::shared_ptr<relay_data>, udp::endpoint> transparent_udp_rec
 
 void relay_acceptor::acceptor_impl::local_udp_accept()
 {
-
-	asio::spawn(_strand, [this](asio::yield_context yield) {
+	auto task = [this]()-> asio::awaitable<void> {
 		while (true) {
 			try {
-				_udp_acceptor.async_wait(udp::socket::wait_read, yield);
+				co_await _udp_acceptor.async_wait(
+					udp::socket::wait_read,
+					asio::bind_executor(_strand, asio::use_awaitable));
 				// recvmsg
 				auto [buffer, src_addr] = transparent_udp_recv_on(_udp_acceptor);
 				_manager->send_udp_data(src_addr, buffer);
@@ -158,7 +186,8 @@ void relay_acceptor::acceptor_impl::local_udp_accept()
 				throw;
 			}
 		}
-	});
+	};
+	asio::co_spawn(_strand, task, asio::detached);
 }
 void relay_acceptor::start_accept()
 {

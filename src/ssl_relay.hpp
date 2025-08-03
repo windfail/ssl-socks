@@ -30,7 +30,7 @@ public:
 private:
 	struct ssl_impl;
 	std::unique_ptr<ssl_impl> _impl;
-	std::size_t internal_send_data(const std::shared_ptr<relay_data> buf, asio::yield_context &yield);
+	asio::awaitable<std::size_t> internal_send_data(const std::shared_ptr<relay_data> buf);
 	void internal_log(const std::string &desc, const boost::system::system_error&error=boost::system::system_error(boost::system::error_code()));
 
 };
