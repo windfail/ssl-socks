@@ -1,10 +1,8 @@
 #include <boost/format.hpp>
 #include <boost/asio.hpp>
-// #include <boost/asio/co_spawn.hpp>
-// #include <boost/asio/detached.hpp>
 #include <unordered_map>
 #include "raw_udp.hpp"
-#include "ssl_relay.hpp"
+// #include "ssl_relay.hpp"
 #include "relay.hpp"
 #include "relay_manager.hpp"
 
@@ -112,8 +110,8 @@ void raw_udp::stop_relay()
         // call close socket
         // BOOST_LOG_TRIVIAL(info) << "stop raw udp";
         boost::system::error_code err;
-        _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
-        _impl->_sock.close(err);
+        auto ret = _impl->_sock.shutdown(tcp::socket::shutdown_both, err);
+        ret = _impl->_sock.close(err);
     });
 }
 static udp::endpoint get_data_addr(const uint8_t *data)

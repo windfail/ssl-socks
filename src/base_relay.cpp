@@ -41,6 +41,7 @@ void base_relay::send_data(const std::shared_ptr<relay_data> buf)
         }
     });
 }
+
 void base_relay::start_send()
 {
 	auto self(shared_from_this());

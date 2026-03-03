@@ -10,7 +10,6 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/asio/strand.hpp>
-// #include <boost/asio/co_spawn.hpp>
 #include "gfwlist.hpp"
 
 namespace asio = boost::asio;
@@ -80,49 +79,4 @@ inline void run_in_strand(asio::strand<asio::io_context::executor_type> &own_str
 {
 	own_strand.dispatch(func, asio::get_associated_allocator(func));
 }
-// #include <coroutine>
-// #include <boost/asio.hpp>
-
-// template<typename Executor>
-// struct StrandTask {
-//     struct promise_type {
-// 		promise_type(boost::asio::strand<Executor>& strand)
-// 			: _strand(strand)
-// 		{}
-//         boost::asio::strand<Executor>& _strand; // 绑定到strand
-//         auto get_return_object() {
-//             return StrandTask{std::coroutine_handle<promise_type>::from_promise(*this)};
-//         }
-//         auto initial_suspend() {
-//             return StrandAwaiter{_strand}; // 初始挂起时通过strand调度
-//         }
-//         auto final_suspend() noexcept { return std::suspend_always{}; }
-//         void return_void() {}
-//         void unhandled_exception() { std::terminate(); }
-//     };
-
-//     struct StrandAwaiter {
-// 		StrandAwaiter(boost::asio::strand<Executor>& strand)
-// 			: _strand(strand)
-// 		{}
-//         boost::asio::strand<Executor>& _strand;
-//         bool await_ready() const { return false; }
-//         void await_suspend(std::coroutine_handle<> h) {
-//             // 确保协程恢复在strand线程执行
-//             boost::asio::post(_strand, [h] { h.resume(); });
-//         }
-//         void await_resume() {}
-//     };
-
-//     std::coroutine_handle<> handle;
-//     explicit StrandTask(std::coroutine_handle<> h) : handle(h) {}
-//     ~StrandTask() { if (handle) handle.destroy(); }
-// };
-// template <typename Awaitable>
-// auto bind_strand(
-//     asio::strand<asio::io_context::executor_type>& strand,
-//     Awaitable awaitable
-// ) {
-//     return asio::bind_executor(strand, std::move(awaitable));
-// }
 #endif

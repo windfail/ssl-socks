@@ -4,8 +4,6 @@
 #include <iomanip>
 #include <boost/format.hpp>
 #include <boost/asio.hpp>
-// #include <boost/asio/connect.hpp>
-// #include <boost/asio/write.hpp>
 #include "raw_tcp.hpp"
 #include "relay_manager.hpp"
 

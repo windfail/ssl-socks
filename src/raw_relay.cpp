@@ -1,7 +1,6 @@
 #include <sstream>
 #include <iomanip>
 #include <boost/format.hpp>
-// #include <boost/asio/spawn.hpp>
 #include "raw_relay.hpp"
 #include "relay_manager.hpp"
 

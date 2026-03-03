@@ -1,7 +1,4 @@
 #include <boost/asio.hpp>
-// #include <boost/asio/co_spawn.hpp>
-// #include <boost/asio/detached.hpp>
-#include <boost/asio/ip/v6_only.hpp>
 #include "relay_acceptor.hpp"
 #include "relay_manager.hpp"
 #include "raw_tcp.hpp"
@@ -87,21 +84,6 @@ void relay_acceptor::acceptor_impl::remote_accept()
 	asio::co_spawn(_strand, task, asio::detached);
 }
 
-// StrandTask<asio::io_context::executor_type>
-// relay_acceptor::acceptor_impl::local_accept() {
-//	while (true) {
-//		try {
-//			auto new_relay = std::make_shared<raw_tcp>(_io, _config, _manager);
-//			// 异步接受连接（绑定strand）
-//			co_await bind_strand(_strand, _acceptor.async_accept(
-//				new_relay->get_sock(), asio::use_awaitable
-//			));
-//			_manager->add_local_raw_tcp(new_relay);
-//		} catch (const std::exception& e) {
-//			BOOST_LOG_TRIVIAL(error) << "Accept error: " << e.what();
-//		}
-//	}
-// }
 void relay_acceptor::acceptor_impl::local_accept()
 {
 	auto task = [this]()-> asio::awaitable<void> {

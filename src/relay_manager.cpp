@@ -298,6 +298,7 @@ void relay_manager::send_udp_data(const udp::endpoint src , const std::shared_pt
 		// BOOST_LOG_TRIVIAL(info) << "send udp data:" << sess.session;
 	});
 }
+
 void relay_manager::set_ssl(const std::shared_ptr<ssl_relay> &ssl)
 {
 	_impl->attach_ssl(ssl);
