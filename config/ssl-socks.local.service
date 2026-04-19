@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/netsock -c /etc/ssl-socks/local.conf
+ExecStart=/usr/bin/netsock -c /etc/ssl-socks/local.conf
 KillSignal=SIGKILL
 Restart=on-failure
 RestartSec=10

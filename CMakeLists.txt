@@ -37,8 +37,8 @@ pkg_check_modules(pthread REQUIRED )
 
 #find_package(nlohmann_json  REQUIRED)
 # find a boost install with the libraries filesystem and system
-find_package(Boost REQUIRED CONFIG
-    COMPONENTS system log log_setup coroutine  # 仅指定必需组件
+find_package(Boost REQUIRED
+    COMPONENTS log log_setup coroutine  # system is header-only since Boost 1.69+
 )
 
 add_definitions(-DBOOST_LOG_DYN_LINK)
@@ -51,13 +51,12 @@ endif()
 
 target_link_libraries( ${PROJECT_NAME}
     PRIVATE
-	Boost::log_setup
-	Boost::log
-	Boost::system
-	Boost::coroutine
-	pthread
-	ssl
-	crypto
+ 	Boost::log_setup
+ 	Boost::log
+ 	Boost::coroutine
+ 	pthread
+ 	ssl
+ 	crypto
 )
 
 # Set the directories that should be included in the build command for this target
@@ -66,3 +65,32 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE
 	${PROJECT_SOURCE_DIR}/include
 )
+
+# Install executable
+install(TARGETS ${PROJECT_NAME} DESTINATION /usr/bin)
+
+# Install service files
+set(SERVICE_FILES
+    config/ssl-socks.tproxy.service
+    config/ssl-socks.remote.service
+    config/ssl-socks.local.service
+)
+install(FILES ${SERVICE_FILES} DESTINATION /usr/lib/systemd/system)
+
+# Install config files
+set(CONFIG_FILES
+    config/tproxy.conf
+    config/sock_ssl.conf
+    config/server.conf
+    config/remote.conf
+    config/nftables.conf
+    config/local_test.conf
+    config/local_socks.conf
+    config/dnsmasq.nftset.conf
+    config/local.conf
+    config/dnsmasq.ipset.conf
+)
+install(FILES ${CONFIG_FILES} DESTINATION /etc/ssl-socks)
+
+# Install setup script
+install(PROGRAMS config/sslsocks.setup DESTINATION /usr/bin)
